@@ -1,0 +1,18 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+# pnpm 11 blocks dependency build scripts unless allowed here. Every native module below ships a pure-JS
+# fallback, so we skip the native builds (no node-gyp / MSVC toolchain needed on Windows).
+allowBuilds:
+  esbuild: true
+  blake-hash: false
+  bufferutil: false
+  keccak: false
+  secp256k1: false
+  utf-8-validate: false
+  # ships prebuilt N-API binaries (prebuilds/win32-x64.node etc.)
+  better-sqlite3: false
+
+minimumReleaseAgeExclude:
+  - '@anthropic-ai/sdk@0.129.0'

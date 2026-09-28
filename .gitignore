@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+
+# secrets — never commit
+.env
+.env.*
+!.env.example
+
+# build output
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# hardhat
+packages/contracts/artifacts/
+packages/contracts/cache/
+packages/contracts/typechain-types/
+packages/contracts/coverage/
+packages/contracts/coverage.json
+packages/contracts/gas-report.txt
+packages/contracts/deployments/localhost.json
+
+# local state
+.data/
+*.db
+*.db-journal
+*.sqlite
+.hush/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
