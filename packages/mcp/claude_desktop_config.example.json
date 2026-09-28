@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "hush": {
+      "command": "node",
+      "args": ["D:\\project1\\Hush\\packages\\mcp\\bin\\hush-mcp.mjs"],
+      "env": {
+        "HUSH_NETWORK": "fuji",
+        "HUSH_AGENT_ROLE": "VEIL",
+        "HUSH_DAILY_CAP_USD": "2.00"
+      }
+    }
+  }
+}

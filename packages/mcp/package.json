@@ -1,0 +1,29 @@
+{
+  "name": "@hush/mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets any MCP-capable agent (Claude Desktop, Claude Code, Cursor…) pay x402 APIs privately with Hush",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "hush-mcp": "./bin/hush-mcp.mjs"
+  },
+  "scripts": {
+    "start": "node bin/hush-mcp.mjs",
+    "smoke": "tsx scripts/smoke.ts",
+    "smoke:local": "tsx scripts/smoke.ts --local",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hush/config": "workspace:*",
+    "@hush/x402": "workspace:*",
+    "@modelcontextprotocol/server": "^2.1.0",
+    "tsx": "^4.23.15",
+    "viem": "^2.56.9",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.1.0",
+    "@types/node": "^22.20.4",
+    "typescript": "~5.9.3"
+  }
+}

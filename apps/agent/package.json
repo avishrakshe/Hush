@@ -1,0 +1,31 @@
+{
+  "name": "@hush/agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autonomous market-data agents (Atlas: public x402, Veil: hush-credit) driven by Claude, plus the owner treasury CLI",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "atlas": "tsx src/index.ts --agent atlas",
+    "veil": "tsx src/index.ts --agent veil",
+    "atlas:local": "tsx src/index.ts --agent atlas --local",
+    "veil:local": "tsx src/index.ts --agent veil --local",
+    "treasury": "tsx src/treasury.ts",
+    "treasury:local": "tsx src/treasury.ts --local",
+    "reveal": "tsx src/reveal.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
+    "@hush/config": "workspace:*",
+    "@hush/x402": "workspace:*",
+    "@x402/fetch": "~2.27.0",
+    "viem": "^2.56.9",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}
