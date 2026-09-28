@@ -1,0 +1,26 @@
+{
+  "name": "@hush/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hush operational scripts: bootstrap a network, end-to-end checks",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "bootstrap": "tsx src/bootstrap.ts",
+    "bootstrap:local": "tsx src/bootstrap.ts --local",
+    "e2e": "tsx src/e2e.ts",
+    "e2e:local": "tsx src/e2e.ts --local",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hush/config": "workspace:*",
+    "@hush/x402": "workspace:*",
+    "@x402/fetch": "~2.27.0",
+    "viem": "^2.56.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}

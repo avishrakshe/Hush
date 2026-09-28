@@ -1,0 +1,33 @@
+{
+  "name": "@hush/facilitator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hush facilitator: x402 v2 /verify /settle for exact + hush-credit + hush-direct, private top-ups, receipts, refunds, Merkle batches, SSE",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "start:local": "tsx src/index.ts --local",
+    "db:generate": "drizzle-kit generate",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hush/config": "workspace:*",
+    "@hush/x402": "workspace:*",
+    "@x402/core": "~2.27.0",
+    "@x402/evm": "~2.27.0",
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.3",
+    "express": "^5.2.1",
+    "viem": "^2.56.9"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.4",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}
