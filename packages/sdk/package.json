@@ -1,0 +1,88 @@
+{
+  "name": "@hush/x402",
+  "version": "0.1.0",
+  "description": "Private x402 payments on Avalanche: hush-credit (encrypted eERC top-ups + signed vouchers) and hush-direct schemes for x402 v2",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "x402",
+    "avalanche",
+    "eerc",
+    "privacy",
+    "payments",
+    "ai-agents"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./client": {
+      "types": "./src/client/index.ts",
+      "default": "./src/client/index.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    },
+    "./facilitator": {
+      "types": "./src/facilitator/index.ts",
+      "default": "./src/facilitator/index.ts"
+    },
+    "./node": {
+      "types": "./src/node/index.ts",
+      "default": "./src/node/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./client": {
+        "types": "./dist/client/index.d.ts",
+        "default": "./dist/client/index.js"
+      },
+      "./server": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      },
+      "./facilitator": {
+        "types": "./dist/facilitator/index.d.ts",
+        "default": "./dist/facilitator/index.js"
+      },
+      "./node": {
+        "types": "./dist/node/index.d.ts",
+        "default": "./dist/node/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@avalabs/eerc-sdk": "1.0.2",
+    "@openzeppelin/merkle-tree": "^1.0.8",
+    "@tanstack/react-query": "^5.104.0",
+    "@x402/core": "~2.27.0",
+    "@x402/evm": "~2.27.0",
+    "@x402/express": "~2.27.0",
+    "@x402/fetch": "~2.27.0",
+    "react": "^19.3.0",
+    "viem": "^2.56.9",
+    "wagmi": "^2.19.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.4",
+    "express": "^5.2.1",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

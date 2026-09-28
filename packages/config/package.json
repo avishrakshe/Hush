@@ -1,0 +1,26 @@
+{
+  "name": "@hush/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared Node config for Hush apps: network, deployment, role wallets, circuits, service URLs",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hush/x402": "workspace:*",
+    "dotenv": "^16.6.1",
+    "viem": "^2.56.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "typescript": "~5.9.3"
+  }
+}
