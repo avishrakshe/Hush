@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* Hush design tokens. AVAX red is reserved for on-chain moments (a payment or batch root landing on C-Chain). */
+:root {
+  --bg: #05060a;
+  --bg-2: #0a0c14;
+  --ink: #e9ecf5;
+  --ink-dim: #a0a8bc;
+  --ink-faint: #5d667b;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --glass: rgba(12, 15, 26, 0.55);
+  --glass-strong: rgba(10, 12, 22, 0.82);
+  --cyan: #22e6ff;
+  --violet: #8b5cf6;
+  --pink: #ff3da8;
+  --avax: #e84142;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-cyan: var(--cyan);
+  --color-violet: var(--violet);
+  --color-pink: var(--pink);
+  --color-avax: var(--avax);
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", monospace;
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    scroll-behavior: smooth;
+  }
+  /* No body background: html paints the page colour, so the fixed 3D layer can sit between it and the content. */
+  body {
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--violet) 55%, transparent);
+    color: #fff;
+  }
+  :focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* Frosted panel. Blur over a live WebGL canvas re-composites every frame, so keep panels small. */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .hairline {
+    background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+    height: 1px;
+  }
+}
+
+/* Static backdrop: what no-WebGL / reduced-motion visitors see, and what sits under the canvas while it loads. */
+.backdrop {
+  background:
+    radial-gradient(60% 50% at 22% 38%, rgba(34, 230, 255, 0.1), transparent 70%),
+    radial-gradient(55% 45% at 78% 30%, rgba(139, 92, 246, 0.14), transparent 70%),
+    radial-gradient(70% 40% at 50% 100%, rgba(255, 61, 168, 0.07), transparent 70%), var(--bg);
+}
+.backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 45% -10% -10% -10%;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  transform: perspective(700px) rotateX(62deg);
+  transform-origin: top center;
+  mask-image: linear-gradient(to bottom, transparent, black 30%, transparent 95%);
+}
+
+@keyframes line-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.line-in {
+  animation: line-in 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+.caret {
+  animation: caret 1s steps(1) infinite;
+}
+
+@media (max-width: 768px) {
+  .glass {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--glass-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .line-in,
+  .caret {
+    animation: none;
+  }
+}

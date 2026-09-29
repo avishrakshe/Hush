@@ -42,6 +42,9 @@
     "reveal": "pnpm --filter @hush/agent reveal",
     "mcp": "pnpm --filter @hush/mcp start",
     "mcp:smoke": "pnpm --filter @hush/mcp smoke",
-    "mcp:smoke:local": "pnpm --filter @hush/mcp smoke:local"
+    "mcp:smoke:local": "pnpm --filter @hush/mcp smoke:local",
+    "web": "pnpm --filter @hush/web dev",
+    "web:build": "pnpm --filter @hush/web build",
+    "web:start": "pnpm --filter @hush/web start"
   }
 }

@@ -146,7 +146,13 @@ Pages: `/` 4-chapter R3F scroll scene (THE LEAK → THE VEIL → HOW IT WORKS �
 `pnpm facilitator:local` → `pnpm provider:local` (waits for the facilitator) → `pnpm e2e:local`.
 Stop services by port (4022 facilitator, 4021 provider), never by command-line pattern.
 - P4 agents (Atlas/Veil) on Fuji, owner treasury, MCP server + Claude Desktop config.
-- P5 web landing 3D scene. P6 /demo + consoles + docs.
+- P5 web landing 3D scene ✅ (2026-09-30): `pnpm web` → http://localhost:3000. Next 16.3.6 pinned (16.3.7 was inside
+  pnpm's release-age gate). **apps/web builds with webpack (`--webpack`)**: the SDK's NodeNext `./x.js` specifiers need
+  `resolve.extensionAlias`, which Turbopack lacks. Browser/server-safe ABIs + deployments: `@hush/x402/contracts`.
+  Scene = one fixed R3F canvas, shader-driven (shared uniforms in `scene/layout.ts`), lazy-loaded; static backdrop for
+  reduced-motion / no-WebGL2. PROOF reads Fuji live via `GET /api/proof` (view calls only, 20 s cache).
+  Observer terminal on the landing is labelled "simulated"; /demo must use real data.
+- P6 /demo + consoles + docs.
 - P7 ship: README (Mermaid, addresses, Avalanche-specific, related work, limitations, pre-existing vs built-during,
   AI tools used), `.env.example`, npm-ready `@hush/x402` + `@hush/mcp`, mainnet deploy, 3-min demo script.
 - Stretch (only if solid by ~day 17): agent-only L1 with tx-allowlist precompile + ICTT USDC; selective-disclosure receipts.

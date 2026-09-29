@@ -32,6 +32,10 @@
     "./node": {
       "types": "./src/node/index.ts",
       "default": "./src/node/index.ts"
+    },
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "default": "./src/contracts.ts"
     }
   },
   "publishConfig": {
@@ -55,6 +59,10 @@
       "./node": {
         "types": "./dist/node/index.d.ts",
         "default": "./dist/node/index.js"
+      },
+      "./contracts": {
+        "types": "./dist/contracts.d.ts",
+        "default": "./dist/contracts.js"
       }
     }
   },
