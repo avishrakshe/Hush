@@ -128,11 +128,15 @@ Pages: `/` 4-chapter R3F scroll scene (THE LEAK → THE VEIL → HOW IT WORKS �
 
 ## Phases
 - P1 research ✅ (2026-09-28)
-- P2 contracts ✅ locally (27 tests; `pnpm prove:local` passes). **Fuji deploy pending: DEPLOYER needs faucet AVAX**
-  (`0x8Ba64d3992C7C2f0D07A3551790757165231721f`), then `deploy:fuji → fund:fuji → prove:fuji → verify:fuji`.
-- P3 SDK + facilitator + provider-demo ✅ locally (26 SDK unit tests; `pnpm e2e:local --with-expiry` 14/14).
-  On Fuji after P2 deploy: `pnpm export:abis && pnpm bootstrap && pnpm facilitator & pnpm provider & pnpm e2e`.
-- P4 agents + treasury + MCP ✅ locally (rules brain; **Claude brain needs `ANTHROPIC_API_KEY`**, untested live).
+- P2 contracts ✅ **on Fuji** (2026-09-29): addresses in `packages/contracts/deployments/fuji.json`, `pnpm prove:fuji`
+  passes, `pnpm status` = read-only snapshot. Snowtrace verification via Routescan is slow/flaky (`verify:fuji` caps
+  each contract at `VERIFY_TIMEOUT_SECONDS`; re-run until all ✔).
+- P3 SDK + facilitator + provider-demo ✅ **on Fuji** (`pnpm e2e` 13/13; locally `e2e:local --with-expiry` 14/14).
+  Note: e2e flags the demo provider on-chain each run (flagCount grows).
+- P4 agents + treasury + MCP ✅ **on Fuji** with the rules brain. Claude brain (`claude-sonnet-5`) reaches the API but
+  **the Anthropic account has no credits** (400 "credit balance is too low") → untested live.
+  One signer per agent key at a time: running Veil and the MCP server (both VEIL) concurrently makes one voucher
+  get rejected (separate voucher stores); the next call recovers.
   Atlas/Veil (`apps/agent`), sealed telemetry (`seal`/`unseal`: Poseidon-ECDH key wrap to owner+auditor eERC keys +
   AES-GCM), `pnpm reveal veil --as owner|auditor`, `pnpm treasury status|allocate|fund-credit|deposit`,
   `@hush/mcp` (7 tools; `pnpm mcp:smoke:local`; Claude Desktop config in `packages/mcp/README.md`).

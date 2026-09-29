@@ -1,0 +1,64 @@
+{
+  "network": "fuji",
+  "chainId": 43113,
+  "deployer": "0x8Ba64d3992C7C2f0D07A3551790757165231721f",
+  "deployedAt": "2026-09-28T19:38:06.300Z",
+  "eercDecimals": 2,
+  "contracts": {
+    "RegistrationVerifier": {
+      "address": "0x52dC55397b9435A2086fE6C4BF8f0C95139C71b1",
+      "txHash": "0x757d1493ed6a345324c6c5db53b32ecdc4977012b74322e39fd101df5666598d",
+      "blockNumber": 58828806
+    },
+    "MintVerifier": {
+      "address": "0x86EcF88E909D834127Da629B315b217492c6Fc18",
+      "txHash": "0xa80a40f19a475da1993c00bc5d7514a8e95b90faa573f9f721c8c25ff6661b41",
+      "blockNumber": 58828808
+    },
+    "WithdrawVerifier": {
+      "address": "0xBD77790aaeeb4789473C66AbFF1FAbed4E84bd80",
+      "txHash": "0x43adb408196b18ce35a622e8cb177bae2da41530f3170393f747bead294eacd0",
+      "blockNumber": 58828814
+    },
+    "TransferVerifier": {
+      "address": "0x0E3Be09B7C8045d7d527aC9EAeC699923c998aB1",
+      "txHash": "0xd26db973fe919f69daec34bc5f086ca97327357578e09f17cf9436f64b37755c",
+      "blockNumber": 58828816
+    },
+    "BurnVerifier": {
+      "address": "0xa038eB9dCCF6a141b6fA69F951625F4eB377bB05",
+      "txHash": "0xa3314017845e76e35f7b9e9abd4da2c6fe0ae2330955ff8b7fb915fd58602b1a",
+      "blockNumber": 58828818
+    },
+    "BabyJubJub": {
+      "address": "0x7bcF9c2f4EfCB09A07369952C6C119fb674b2bBe",
+      "txHash": "0x265b74a6d72819764923881eaf98e503b27efa1b7cf64ed63a83c57286edad9f",
+      "blockNumber": 58828820
+    },
+    "Registrar": {
+      "address": "0x9F674A79fcEc3B472A35895ab6a4FA870200B34b",
+      "txHash": "0xfe8735899626d1bdedb3086eebcb6dad84fdef1f1f1778686176a04f2e382f59",
+      "blockNumber": 58828823
+    },
+    "EncryptedERC": {
+      "address": "0x9Aa48Af8C613e8fEA7Ef8c8BB859A0a8C52F2396",
+      "txHash": "0xd2b245611f2c91d22c46d4dd688f0da5d86b85a8e219ff160e7aafa104ceddd2",
+      "blockNumber": 58828827
+    },
+    "MockUSDC": {
+      "address": "0x77a5b64985b910652826183213d12bf3dc2DeCF7",
+      "txHash": "0x98c6b5079a8123263e7c85fe1a72d8ca5d92352988728e23aa096bc2a8fdd14f",
+      "blockNumber": 58828830
+    },
+    "HushRegistry": {
+      "address": "0x8CdEaaF16304a6E03002b90a6029b8E79e221ef6",
+      "txHash": "0x484020e6ccf3cfc99c1d2feedf6acb25ebed9433fe889ac7d2ec44bee7d60b8d",
+      "blockNumber": 58828835
+    },
+    "HushLedger": {
+      "address": "0x1D6ee5d0AA41f191A361C4306EbCc9E2Aa387577",
+      "txHash": "0xf423dcbac5e99d81678b0bb80309170ea61e8c46bb61f1cc5639e15f8faf3c7c",
+      "blockNumber": 58828840
+    }
+  }
+}

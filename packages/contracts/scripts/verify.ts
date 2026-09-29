@@ -43,14 +43,21 @@ async function main() {
     { name: "HushLedger", address: c.HushLedger.address, constructorArguments: [c.HushRegistry.address] },
   ];
 
+  // Routescan sometimes accepts a submission but its status endpoint never leaves "pending", and hardhat-verify polls
+  // forever. Cap each job; the source is usually verified anyway (re-run to confirm — verified ones are skipped).
+  const TIMEOUT_MS = Number(process.env.VERIFY_TIMEOUT_SECONDS || 120) * 1000;
+  const timedOut = Symbol("timeout");
   for (const job of jobs) {
     try {
-      await hre.run("verify:verify", {
-        address: job.address,
-        constructorArguments: job.constructorArguments,
-        libraries: job.libraries,
-      });
-      console.log(`✔ ${job.name}`);
+      const result = await Promise.race([
+        hre.run("verify:verify", {
+          address: job.address,
+          constructorArguments: job.constructorArguments,
+          libraries: job.libraries,
+        }),
+        new Promise((resolve) => setTimeout(() => resolve(timedOut), TIMEOUT_MS)),
+      ]);
+      console.log(result === timedOut ? `… ${job.name}: submitted, status still pending after ${TIMEOUT_MS / 1000}s` : `✔ ${job.name}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(/already verified/i.test(msg) ? `✔ ${job.name} (already verified)` : `✘ ${job.name}: ${msg.split("\n")[0]}`);
@@ -58,7 +65,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0)) // a timed-out status poll would otherwise keep the process alive
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

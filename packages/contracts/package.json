@@ -17,7 +17,9 @@
     "fund:fuji": "tsx scripts/fund-roles.mts",
     "deploy:fuji": "hardhat run scripts/deploy.ts --network fuji",
     "verify:fuji": "hardhat run scripts/verify.ts --network fuji",
-    "prove:fuji": "tsx scripts/prove-eerc.mts"
+    "prove:fuji": "tsx scripts/prove-eerc.mts",
+    "status": "tsx scripts/status.mts",
+    "status:local": "tsx scripts/status.mts --local"
   },
   "devDependencies": {
     "@avalabs/eerc-sdk": "1.0.2",

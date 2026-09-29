@@ -2,4 +2,15 @@
 import type { HushContracts } from "../types.js";
 
 /** Public Hush deployments by chainId. */
-export const HUSH_DEPLOYMENTS: Record<number, HushContracts> = {};
+export const HUSH_DEPLOYMENTS: Record<number, HushContracts> = {
+  "43113": {
+    "chainId": 43113,
+    "eercDecimals": 2,
+    "startBlock": 58828827,
+    "encryptedErc": "0x9Aa48Af8C613e8fEA7Ef8c8BB859A0a8C52F2396",
+    "registrar": "0x9F674A79fcEc3B472A35895ab6a4FA870200B34b",
+    "usdc": "0x77a5b64985b910652826183213d12bf3dc2DeCF7",
+    "hushRegistry": "0x8CdEaaF16304a6E03002b90a6029b8E79e221ef6",
+    "hushLedger": "0x1D6ee5d0AA41f191A361C4306EbCc9E2Aa387577"
+  }
+};

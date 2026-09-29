@@ -21,6 +21,8 @@
     "verify:fuji": "pnpm --filter @hush/contracts verify:fuji",
     "prove:fuji": "pnpm --filter @hush/contracts prove:fuji",
     "export:abis": "pnpm --filter @hush/contracts export",
+    "status": "pnpm --filter @hush/contracts status",
+    "status:local": "pnpm --filter @hush/contracts status:local",
     "test:sdk": "pnpm --filter @hush/x402 test",
     "test": "pnpm test:contracts && pnpm test:sdk",
     "typecheck": "pnpm -r --if-present typecheck",
