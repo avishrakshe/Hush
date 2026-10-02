@@ -10,6 +10,8 @@
     "bootstrap:local": "tsx src/bootstrap.ts --local",
     "e2e": "tsx src/e2e.ts",
     "e2e:local": "tsx src/e2e.ts --local",
+    "demo": "tsx src/demo.ts",
+    "demo:local": "tsx src/demo.ts --local",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
