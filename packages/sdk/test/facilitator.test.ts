@@ -3,7 +3,9 @@ import { type Address, type Hex, keccak256, stringToBytes, verifyTypedData } fro
 import { privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  CREDIT_QUERY_MAX_AGE_SECONDS,
   type HushContracts,
+  creditAuthHeader,
   hushDomain,
   isValidCreditReceipt,
   receiptFromJson,
@@ -178,6 +180,31 @@ describe("HushProviderService — top-ups & receipts", () => {
 
     s.incoming.set(txHash("x1"), { from: stranger.address, units: 500n, memo: `hush:topup:v1:agent=${agent.address.toLowerCase()}` });
     await expect(s.service.processTopUp(undefined, txHash("x1"))).rejects.toMatchObject({ code: "unauthorized_payer" });
+  });
+});
+
+describe("HushProviderService — credit reads are private", () => {
+  let s: ReturnType<typeof setup>;
+  beforeEach(async () => {
+    s = setup();
+    s.incoming.set(txHash("t1"), { from: agent.address, units: 100n });
+    await s.service.processTopUp(agent.address, txHash("t1"));
+  });
+  const auth = (signer: typeof agent, forProvider: Address = provider.address) =>
+    creditAuthHeader(signer, domain, agent.address, forProvider);
+
+  it("answers the agent and its registered owner", async () => {
+    expect((await s.service.authorizedCreditState(agent.address, await auth(agent))).available).toBe("1000000");
+    expect((await s.service.authorizedCreditState(agent.address, await auth(owner))).available).toBe("1000000");
+  });
+
+  it("refuses unsigned, stranger-signed, stale and wrong-provider queries", async () => {
+    await expect(s.service.authorizedCreditState(agent.address, undefined)).rejects.toMatchObject({ code: "unauthorized", status: 401 });
+    await expect(s.service.authorizedCreditState(agent.address, await auth(stranger))).rejects.toMatchObject({ code: "unauthorized" });
+    await expect(s.service.authorizedCreditState(agent.address, await auth(agent, stranger.address))).rejects.toMatchObject({ code: "unauthorized" });
+    const fresh = await auth(agent);
+    s.now.t += (CREDIT_QUERY_MAX_AGE_SECONDS + 5) * 1000;
+    await expect(s.service.authorizedCreditState(agent.address, fresh)).rejects.toMatchObject({ code: "expired_request" });
   });
 });
 

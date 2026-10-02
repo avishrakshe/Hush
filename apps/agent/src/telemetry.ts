@@ -76,7 +76,8 @@ export class Telemetry {
       res.statusCode = 404;
       res.end(toJson({ error: "not found" }));
     });
-    server.listen(port);
+    // Loopback by default: even sealed, the timing of these events is activity data. TELEMETRY_HOST=0.0.0.0 to expose.
+    server.listen(port, process.env.TELEMETRY_HOST || "127.0.0.1");
     return server;
   }
 }

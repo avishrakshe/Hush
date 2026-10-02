@@ -9,8 +9,16 @@ import {
   recoverTypedDataAddress,
   stringToBytes,
 } from "viem";
-import { CREDIT_RECEIPT_TYPES, EIP712_NAME, EIP712_VERSION, REFUND_REQUEST_TYPES, VOUCHER_TYPES } from "./constants.js";
+import {
+  CREDIT_QUERY_TYPES,
+  CREDIT_RECEIPT_TYPES,
+  EIP712_NAME,
+  EIP712_VERSION,
+  REFUND_REQUEST_TYPES,
+  VOUCHER_TYPES,
+} from "./constants.js";
 import type {
+  CreditQuery,
   CreditReceipt,
   CreditReceiptJson,
   RefundRequest,
@@ -90,6 +98,21 @@ export function signRefundRequest(signer: TypedDataSigner, domain: TypedDataDoma
 
 export const recoverRefundRequestSigner = (domain: TypedDataDomain, request: RefundRequest, signature: Hex) =>
   recoverTypedDataAddress({ domain, types: REFUND_REQUEST_TYPES, primaryType: "RefundRequest", message: request, signature });
+
+// ─── credit queries ───
+
+export function signCreditQuery(signer: TypedDataSigner, domain: TypedDataDomain, query: CreditQuery): Promise<Hex> {
+  return signer.signTypedData({ domain: { ...domain }, types: CREDIT_QUERY_TYPES, primaryType: "CreditQuery", message: { ...query } });
+}
+
+export const recoverCreditQuerySigner = (domain: TypedDataDomain, query: CreditQuery, signature: Hex) =>
+  recoverTypedDataAddress({ domain, types: CREDIT_QUERY_TYPES, primaryType: "CreditQuery", message: query, signature });
+
+/** Value for the CREDIT_AUTH_HEADER: a fresh query for (agent, provider), signed by the agent or its owner. */
+export async function creditAuthHeader(signer: TypedDataSigner, domain: TypedDataDomain, agent: Address, provider: Address): Promise<string> {
+  const issuedAt = BigInt(Math.floor(Date.now() / 1000));
+  return `${issuedAt}.${await signCreditQuery(signer, domain, { agent, provider, issuedAt })}`;
+}
 
 /**
  * Signature check that also accepts ERC-1271 smart-account agents when a public client is available

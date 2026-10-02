@@ -54,6 +54,14 @@ export interface RefundRequest {
   deadline: bigint;
 }
 
+/** Signed by the agent (or its owner) to read the agent's credit from a facilitator. */
+export interface CreditQuery {
+  agent: Address;
+  provider: Address;
+  /** Unix seconds; the facilitator accepts it for CREDIT_QUERY_MAX_AGE_SECONDS. */
+  issuedAt: bigint;
+}
+
 // ─── JSON wire forms (bigints as decimal strings) ───
 
 export interface VoucherJson {

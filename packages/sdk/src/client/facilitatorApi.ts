@@ -1,4 +1,5 @@
 import type { Address, Hex } from "viem";
+import { CREDIT_AUTH_HEADER } from "../constants.js";
 import type { CreditStateJson, RefundRequestJson, RefundResponse, TopUpResponse, VoucherProofJson } from "../types.js";
 
 export class FacilitatorApiError extends Error {
@@ -29,8 +30,9 @@ export class HushFacilitatorApi {
     return body as T;
   }
 
-  credit(agent: Address, provider: Address) {
-    return this.request<CreditStateJson>(`credit/${agent}?provider=${provider}`);
+  /** `auth` = `creditAuthHeader(...)`: a CreditQuery signed by the agent or its owner. */
+  credit(agent: Address, provider: Address, auth: string) {
+    return this.request<CreditStateJson>(`credit/${agent}?provider=${provider}`, { headers: { [CREDIT_AUTH_HEADER]: auth } });
   }
 
   /** Ask the provider's facilitator to decrypt a private top-up and credit it. Returns a provider-signed receipt. */

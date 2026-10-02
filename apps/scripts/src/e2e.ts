@@ -1,7 +1,7 @@
 /**
  * P3 end-to-end check against a running facilitator + provider-demo.
  *
- *   public `exact` (Atlas) · hush-credit (Veil): top-up + CreditReceipt + vouchers · what the public sees ·
+ *   public `exact` (Atlas) · hush-credit (Veil): top-up + CreditReceipt + vouchers · signed credit reads · what the public sees ·
  *   Merkle batch + on-chain inclusion · spend policy · kill switch · flagging · refund · hush-direct ·
  *   privacy options (fixed chunks, jittered pre-emptive top-ups) · optional credit expiry
  *
@@ -9,6 +9,8 @@
  */
 import { NETWORK, URLS, loadContracts, publicClient, txLink, wallet } from "@hush/config";
 import {
+  CREDIT_AUTH_HEADER,
+  creditAuthHeader,
   eercToAtomic,
   evidenceHash,
   flagProvider,
@@ -118,7 +120,8 @@ async function main() {
   // Make every run exercise the top-up path: privately return credit left over from earlier runs.
   await check("reset: refund credit left over from earlier runs", async () => {
     const api = new HushFacilitatorApi(URLS.facilitator);
-    const state = await api.credit(veil.address, provider.address);
+    const auth = await creditAuthHeader(veil.account, hushDomain(contracts.chainId, contracts.hushLedger), veil.address, provider.address);
+    const state = await api.credit(veil.address, provider.address, auth);
     if (BigInt(state.available) < 20_000n) return "no leftover credit";
     const request = { agent: veil.address, provider: provider.address, deadline: BigInt(Math.floor(Date.now() / 1000) + 300) };
     const signature = await signRefundRequest(veil.account, hushDomain(contracts.chainId, contracts.hushLedger), request);
@@ -137,6 +140,17 @@ async function main() {
     const receipts = await veilPay.store.listReceipts();
     topUpTx = receipts.at(-1)?.receipt.topupTxHash;
     return `timings ${timings.join(" · ")}`;
+  });
+
+  await check("credit is private: unsigned or stranger-signed credit reads are refused; the owner's are accepted", async () => {
+    const url = `${URLS.facilitator}/credit/${veil.address}?provider=${provider.address}`;
+    const domain = hushDomain(contracts.chainId, contracts.hushLedger);
+    const unsigned = await fetch(url);
+    const stranger = await fetch(url, { headers: { [CREDIT_AUTH_HEADER]: await creditAuthHeader(atlas.account, domain, veil.address, provider.address) } });
+    const byOwner = await fetch(url, { headers: { [CREDIT_AUTH_HEADER]: await creditAuthHeader(owner.account, domain, veil.address, provider.address) } });
+    assert(unsigned.status === 401 && stranger.status === 401, `unsigned ${unsigned.status}, stranger ${stranger.status}`);
+    assert(byOwner.status === 200, `owner ${byOwner.status}`);
+    return "unsigned → 401 · another agent → 401 · registered owner → 200";
   });
 
   await check("CreditReceipt: provider-signed, verifiable off-chain and on HushLedger", async () => {

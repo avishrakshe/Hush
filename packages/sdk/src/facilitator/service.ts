@@ -14,11 +14,20 @@ import {
   keccak256,
   toHex,
 } from "viem";
-import { DEFAULT_CREDIT_TTL_SECONDS, HUSH_CREDIT, LEAF_TYPES, REFUND_MEMO, TOPUP_MEMO_PREFIX, VOUCHER_TYPES } from "../constants.js";
+import {
+  CREDIT_QUERY_MAX_AGE_SECONDS,
+  DEFAULT_CREDIT_TTL_SECONDS,
+  HUSH_CREDIT,
+  LEAF_TYPES,
+  REFUND_MEMO,
+  TOPUP_MEMO_PREFIX,
+  VOUCHER_TYPES,
+} from "../constants.js";
 import {
   type TypedDataSigner,
   hushDomain,
   receiptToJson,
+  recoverCreditQuerySigner,
   recoverRefundRequestSigner,
   refundRequestFromJson,
   requestHashFor,
@@ -124,9 +133,33 @@ export class HushProviderService {
 
   // ───────────────────────────── credit ─────────────────────────────
 
+  /** Unauthenticated read — for the facilitator's own use. HTTP callers must go through `authorizedCreditState`. */
   async creditState(agent: Address): Promise<CreditStateJson> {
     const [credit, frozen] = await Promise.all([this.opts.store.getCredit(getAddress(agent), this.provider), this.isFrozen(agent)]);
     return this.toJson(credit, frozen);
+  }
+
+  /**
+   * Credit for `agent`, only for the agent itself or its registered owner. `auth` is the CREDIT_AUTH_HEADER value,
+   * `<issuedAt>.<signature>` over a CreditQuery. Without this check, polling an agent's `settledCumulative` would
+   * reveal every call it makes and what it spends.
+   */
+  async authorizedCreditState(agent: Address, auth: string | undefined): Promise<CreditStateJson> {
+    const [issuedAtRaw, signature] = (auth ?? "").split(".");
+    if (!issuedAtRaw || !/^\d+$/.test(issuedAtRaw) || !signature?.startsWith("0x")) {
+      throw new HushError("unauthorized", "credit queries must be signed by the agent or its owner", 401);
+    }
+    const issuedAt = BigInt(issuedAtRaw);
+    const age = Math.floor(this.now() / 1000) - Number(issuedAt);
+    if (age > CREDIT_QUERY_MAX_AGE_SECONDS || age < -60) throw new HushError("expired_request", "credit query expired or from the future", 401);
+
+    const query = { agent: getAddress(agent), provider: this.provider, issuedAt };
+    const signer = await recoverCreditQuerySigner(this.domain, query, signature as Hex).catch(() => undefined);
+    const owner = signer && !isAddressEqual(signer, query.agent) ? await this.agentOwner(query.agent) : undefined;
+    if (!signer || !(isAddressEqual(signer, query.agent) || (owner && isAddressEqual(owner, signer)))) {
+      throw new HushError("unauthorized", "credit queries must be signed by the agent or its owner", 401);
+    }
+    return this.creditState(query.agent);
   }
 
   toJson(c: CreditRecord, frozen = false): CreditStateJson {

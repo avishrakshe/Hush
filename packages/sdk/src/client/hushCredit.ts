@@ -4,6 +4,7 @@ import { type Address, type Hex, type PublicClient, getAddress, isAddressEqual }
 import { DEFAULT_VOUCHER_TTL_SECONDS, HUSH_CREDIT, TOPUP_MEMO_PREFIX } from "../constants.js";
 import {
   type TypedDataSigner,
+  creditAuthHeader,
   hushDomain,
   isValidCreditReceipt,
   receiptFromJson,
@@ -112,8 +113,7 @@ export class HushCreditClient implements SchemeNetworkClient {
     // Held until the paid request completes, so concurrent calls to one provider never sign the same nonce.
     const release = await this.acquire(provider);
     try {
-      const api = this.api(extra);
-      let credit = await api.credit(this.agent, provider);
+      let credit = await this.fetchCredit(provider, { extra, chainId });
       if (credit.frozen) throw new Error("agent is frozen by its owner (HushRegistry kill switch)");
 
       if (BigInt(credit.available) < price) {
@@ -159,7 +159,7 @@ export class HushCreditClient implements SchemeNetworkClient {
 
   /** Current credit with a provider as the facilitator sees it (USDC atomic units). */
   async creditState(provider: Address): Promise<CreditStateJson> {
-    return this.api((await this.config(provider)).extra).credit(this.agent, provider);
+    return this.fetchCredit(provider, await this.config(provider));
   }
 
   /** Top up proactively (e.g. at startup) instead of on the first call. */
@@ -297,7 +297,7 @@ export class HushCreditClient implements SchemeNetworkClient {
       this.timers.delete(key);
       const release = await this.acquire(provider);
       try {
-        const credit = await this.api(cfg.extra).credit(this.agent, provider);
+        const credit = await this.fetchCredit(provider, cfg);
         if (BigInt(credit.available) < threshold && !credit.frozen) await this.topUp(provider, cfg, smallest, "preemptive");
       } catch (err) {
         this.emit({ type: "error", error: err as Error });
@@ -374,6 +374,12 @@ export class HushCreditClient implements SchemeNetworkClient {
 
   private api(extra: HushCreditExtra) {
     return new HushFacilitatorApi(extra.facilitatorUrl, this.opts.fetch);
+  }
+
+  /** Credit reads are signed: only this agent (or its owner) may watch its balance move. */
+  private async fetchCredit(provider: Address, { extra, chainId }: ProviderConfig): Promise<CreditStateJson> {
+    const auth = await creditAuthHeader(this.opts.signer, hushDomain(chainId, extra.hushLedger), this.agent, provider);
+    return this.api(extra).credit(this.agent, provider, auth);
   }
 
   private emit(event: HushClientEvent) {

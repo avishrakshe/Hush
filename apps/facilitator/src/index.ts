@@ -7,7 +7,7 @@
  *   Jobs:     Merkle batch commit every BATCH_INTERVAL_SECONDS (padded when idle) · credit expiry · eERC sweep
  */
 import { NET, NETWORK, PORTS, loadContracts, publicClient, txLink, wallet } from "@hush/config";
-import { EXACT, HUSH_CREDIT, hushRegistryAbi, toCaip2 } from "@hush/x402";
+import { CREDIT_AUTH_HEADER, EXACT, HUSH_CREDIT, hushRegistryAbi, toCaip2 } from "@hush/x402";
 import {
   type FacilitatorEvent,
   HushCreditFacilitatorScheme,
@@ -110,7 +110,7 @@ const app = express();
 app.use(express.json({ limit: "256kb" }));
 app.use((req, res, next) => {
   res.setHeader("access-control-allow-origin", "*");
-  res.setHeader("access-control-allow-headers", "content-type, authorization");
+  res.setHeader("access-control-allow-headers", `content-type, authorization, ${CREDIT_AUTH_HEADER}`);
   if (req.method === "OPTIONS") return void res.sendStatus(204);
   next();
 });
@@ -158,9 +158,10 @@ app.post(
     send(res, await service.processTopUp(agent ? addressParam(agent) : undefined, hashParam(txHash)));
   }),
 );
+// Signed by the agent or its owner: a public credit endpoint would leak every call through settledCumulative.
 app.get(
   "/credit/:agent",
-  wrap(async (req, res) => send(res, await service.creditState(addressParam(req.params.agent)))),
+  wrap(async (req, res) => send(res, await service.authorizedCreditState(addressParam(req.params.agent), req.get(CREDIT_AUTH_HEADER)))),
 );
 app.post(
   "/refund",

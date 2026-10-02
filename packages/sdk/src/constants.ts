@@ -51,6 +51,22 @@ export const REFUND_REQUEST_TYPES = {
   ],
 } as const;
 
+/**
+ * Read access to an agent's credit. A running credit balance moves with every call, so an unauthenticated
+ * `GET /credit/:agent` would hand anyone the call frequency and spend hush-credit hides. Signed by the agent or its owner.
+ */
+export const CREDIT_QUERY_TYPES = {
+  CreditQuery: [
+    { name: "agent", type: "address" },
+    { name: "provider", type: "address" },
+    { name: "issuedAt", type: "uint64" },
+  ],
+} as const;
+/** How long a signed credit query stays valid (it is read-only, so a short replay window is harmless). */
+export const CREDIT_QUERY_MAX_AGE_SECONDS = 300;
+/** HTTP header carrying `<issuedAt>.<signature>` for `GET /credit/:agent`. */
+export const CREDIT_AUTH_HEADER = "x-hush-credit-auth";
+
 /** HushRegistry agent-consent typed data (domain name "HushRegistry", verifyingContract = HushRegistry). */
 export const AGENT_CONSENT_TYPES = {
   AgentConsent: [
