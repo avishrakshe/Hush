@@ -15,8 +15,9 @@ export {
   type TradePolicy,
 } from "./hushRfq.js";
 export { HushDirectClient } from "./hushDirect.js";
+export { HushPublicDesk, type HushPublicDeskOptions, type PublicTrade } from "./publicDesk.js";
 export { HushFacilitatorApi, FacilitatorApiError } from "./facilitatorApi.js";
-export { assertPolicy, PolicyViolation, spentToday, toX402Policy, type SpendPolicy } from "./policy.js";
+export { assertPolicy, PolicyViolation, isDeskQuote, spentToday, toX402Policy, type SpendPolicy } from "./policy.js";
 export { DEFAULT_TOP_UP_CHUNKS, pickTopUpChunk, randomDelay, resolvePrivacy, type PrivacyOptions } from "./privacy.js";
 export {
   MemoryHushStore,

@@ -26,10 +26,15 @@ const startOfUtcDay = (now = Date.now()) => {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 };
 
+/** API spend today (trades excluded — TradePolicy caps those). */
 export async function spentToday(store: HushStore, now = Date.now()): Promise<bigint> {
   const since = startOfUtcDay(now);
-  return (await store.listPayments()).filter((p) => p.at >= since).reduce((sum, p) => sum + BigInt(p.amount), 0n);
+  return (await store.listPayments()).filter((p) => p.at >= since && p.kind !== "trade").reduce((sum, p) => sum + BigInt(p.amount), 0n);
 }
+
+/** A Hush Desk quote (hush-rfq or the desk's public `exact` path): a trade, not an API call. */
+export const isDeskQuote = (r: Pick<PaymentRequirements, "scheme" | "extra">) =>
+  r.scheme === HUSH_RFQ || !!(r.extra as { quote?: unknown } | undefined)?.quote;
 
 /** Throws PolicyViolation if paying `amount` to `provider` now would break the policy. */
 export async function assertPolicy(policy: SpendPolicy | undefined, store: HushStore, provider: Address, amount: bigint) {
@@ -50,13 +55,14 @@ export async function assertPolicy(policy: SpendPolicy | undefined, store: HushS
 
 /**
  * The static parts of the policy as an x402 PaymentPolicy, so disallowed offers are filtered out up front. Desk quotes
- * (hush-rfq) are trades, not API spend: TradePolicy governs them, so this filter leaves them alone.
+ * (hush-rfq, or `exact` carrying a desk quote) are trades, not API spend: TradePolicy governs them, so this filter
+ * leaves them alone.
  */
 export function toX402Policy(policy: SpendPolicy | undefined) {
   return (_version: number, reqs: PaymentRequirements[]) =>
     reqs.filter(
       (r) =>
-        r.scheme === HUSH_RFQ ||
+        isDeskQuote(r) ||
         ((!policy?.allowedProviders || policy.allowedProviders.some((p) => isAddressEqual(p, r.payTo as Address))) &&
           (policy?.maxPerCall === undefined || BigInt(r.amount) <= policy.maxPerCall)),
     );

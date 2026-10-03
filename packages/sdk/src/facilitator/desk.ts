@@ -11,6 +11,7 @@ import {
   erc20Abi,
   getAddress,
   isAddressEqual,
+  parseEventLogs,
   toHex,
 } from "viem";
 import {
@@ -62,7 +63,7 @@ export interface HushDeskServiceOptions {
   /** The desk key (same wallet as the service's provider). Signs quotes, fills and position statements. */
   signer: TypedDataSigner;
   contracts: HushContracts;
-  publicClient: Pick<PublicClient, "readContract" | "waitForTransactionReceipt">;
+  publicClient: Pick<PublicClient, "readContract" | "waitForTransactionReceipt" | "getTransactionReceipt" | "getBlock">;
   store: DeskStore;
   /** The desk's eERC account: encrypted stock inventory for private settle-outs. */
   deskEerc?: EercAccount;
@@ -190,7 +191,10 @@ export class HushDeskService {
   }
 
   /** Re-checks a quote the desk issued: its signature, arithmetic, expiry, that it is unused, and who it was for. */
-  async checkQuote(signed: SignedQuoteJson | { quote: Quote; signature: Hex }, expect: { agent?: Address; side?: Side } = {}): Promise<Quote> {
+  async checkQuote(
+    signed: SignedQuoteJson | { quote: Quote; signature: Hex },
+    expect: { agent?: Address; side?: Side; /** check expiry at this unix time instead of now */ at?: number } = {},
+  ): Promise<Quote> {
     let quote: Quote;
     try {
       quote = typeof signed.quote.size === "string" ? quoteFromJson(signed.quote as SignedQuoteJson["quote"]) : (signed.quote as Quote);
@@ -201,7 +205,7 @@ export class HushDeskService {
       throw new HushError("invalid_quote", "quote was not signed by this desk");
     }
     if (quote.notional !== quoteNotional(quote.size, quote.price)) throw new HushError("invalid_quote", "quote notional does not match size × price");
-    if (Number(quote.expiry) < this.nowS()) throw new HushError("quote_expired", "quote expired — ask for a new one");
+    if (Number(quote.expiry) < (expect.at ?? this.nowS())) throw new HushError("quote_expired", "quote expired — ask for a new one");
     if (expect.agent && !isAddressEqual(quote.agent, expect.agent)) throw new HushError("quote_agent_mismatch", "quote was issued to another agent", 403);
     if (expect.side && quote.side !== SIDE[expect.side]) throw new HushError("invalid_quote", `expected a ${expect.side} quote`);
     if (await this.opts.store.isQuoteUsed(quote.quoteId)) throw new HushError("quote_used", "quote already filled", 409);
@@ -328,6 +332,53 @@ export class HushDeskService {
     if (receipt.status !== "success") throw new Error(`delivery reverted: ${deliveryTx}`);
     const fill = await this.recordFill(quote, "exact", { paymentTx, deliveryTx });
     return { fill, deliveryTx };
+  }
+
+  /**
+   * Public sell (the `exact` baseline's other direction): the seller has already transferred the plain tokens to the
+   * desk on-chain; the desk checks that transfer against its sell quote and pays USDC publicly. Two public transfers —
+   * the asset, size and direction are all readable by anyone. The quote counts as honoured if the transfer landed
+   * before it expired (the seller committed in time, even if this call arrives later).
+   */
+  async publicSell(signed: SignedQuoteJson, transferTx: Hex): Promise<{ fill: SignedFillJson; payoutTx: Hex }> {
+    const wallet = this.opts.deskWallet;
+    if (!wallet) throw new Error("public sells need `deskWallet`");
+    return this.book.run(async () => {
+      const receipt = await this.opts.publicClient.getTransactionReceipt({ hash: transferTx }).catch(() => undefined);
+      if (!receipt || receipt.status !== "success") throw new HushError("invalid_transfer", "token transfer not found or reverted");
+      const [block, head] = await Promise.all([
+        this.opts.publicClient.getBlock({ blockNumber: receipt.blockNumber }),
+        this.opts.publicClient.getBlock({ blockTag: "latest" }),
+      ]);
+      // Quote expiries are in the desk's clock; block timestamps can run ahead of it (a local node stamps each block at
+      // least 1 s after the last). Translate the transfer's block time into the desk's clock before comparing.
+      const chainAhead = Number(head.timestamp) - this.nowS();
+      const quote = await this.checkQuote(signed, { side: "sell", at: Number(block.timestamp) - Math.max(0, chainAhead) });
+      const token = this.stockToken(this.ticker(bytes32ToTicker(quote.ticker)));
+      const paid = parseEventLogs({ abi: erc20Abi, eventName: "Transfer", logs: receipt.logs }).some(
+        (l) =>
+          isAddressEqual(l.address, token) &&
+          isAddressEqual(l.args.from, quote.agent) &&
+          isAddressEqual(l.args.to, this.desk) &&
+          l.args.value === quote.size * CENTISHARE,
+      );
+      if (!paid) throw new HushError("invalid_transfer", "transaction is not this quote's token transfer to the desk");
+      // One transfer settles one quote: the tx hash is consumed alongside the quote id.
+      if (!(await this.opts.store.useQuote(transferTx, quote.agent, this.now()))) throw new HushError("duplicate_transfer", "transfer already used", 409);
+      if (!(await this.opts.store.useQuote(quote.quoteId, quote.agent, this.now()))) throw new HushError("quote_used", "quote already filled", 409);
+
+      const payoutTx = await wallet.writeContract({
+        address: this.opts.contracts.usdc,
+        abi: erc20Abi,
+        functionName: "transfer",
+        args: [quote.agent, quote.notional],
+      });
+      const payout = await this.opts.publicClient.waitForTransactionReceipt({ hash: payoutTx });
+      if (payout.status !== "success") throw new Error(`payout reverted: ${payoutTx}`);
+      // For public sells: paymentTx = the desk's USDC payout, deliveryTx = the seller's token transfer.
+      const fill = await this.recordFill(quote, "exact", { paymentTx: payoutTx, deliveryTx: transferTx });
+      return { fill, payoutTx };
+    });
   }
 
   // ───────────────────────────── custody ─────────────────────────────

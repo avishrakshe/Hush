@@ -18,6 +18,8 @@ export interface StoredPayment {
   amount: string;
   resource: string;
   at: number;
+  /** "trade" = a Hush Desk quote paid publicly (not API spend). Absent = an API call. */
+  kind?: "api" | "trade";
 }
 
 /** The agent's own copy of each voucher it signed — kept to verify on-chain inclusion later. */

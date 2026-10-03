@@ -1,5 +1,5 @@
 import type { PaymentRequirements } from "@x402/core/types";
-import { type Address, type Hex, keccak256, stringToBytes, verifyTypedData } from "viem";
+import { type Address, type Hex, encodeAbiParameters, encodeEventTopics, erc20Abi, keccak256, stringToBytes, verifyTypedData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -81,6 +81,25 @@ function setup(opts: { inventory?: bigint } = {}) {
     async waitForTransactionReceipt() {
       return { status: "success" };
     },
+    async getTransactionReceipt({ hash }: { hash: Hex }) {
+      const r = chainTxs.get(hash);
+      if (!r) throw new Error("transaction not found");
+      return { status: "success", blockNumber: r.blockNumber, logs: r.logs };
+    },
+    async getBlock({ blockNumber }: { blockNumber: bigint }) {
+      return { timestamp: blockTimes.get(blockNumber) ?? BigInt(Math.floor(now.t / 1000)) };
+    },
+  };
+  // Public token transfers the desk can look up (for public sells).
+  const chainTxs = new Map<string, { blockNumber: bigint; logs: unknown[] }>();
+  const blockTimes = new Map<bigint, bigint>();
+  const payouts: { to: Address; amount: bigint }[] = [];
+  const deskWallet = {
+    async writeContract({ args }: { args: readonly unknown[] }) {
+      const [to, amount] = args as [Address, bigint];
+      payouts.push({ to, amount });
+      return txHash(`payout-${payouts.length}`);
+    },
   };
 
   // One fake eERC account for the desk: decrypts hUSDC top-ups, holds encrypted hNVDA inventory, sends settle-outs.
@@ -114,8 +133,38 @@ function setup(opts: { inventory?: bigint } = {}) {
     now: () => now.t,
   });
   const store = new MemoryDeskStore();
-  const deskService = new HushDeskService({ service, signer: desk, contracts, publicClient: publicClient as never, store, deskEerc: eerc, now: () => now.t });
-  return { now, state, service, desk: deskService, store, incoming, sent, failTransfers };
+  const deskService = new HushDeskService({
+    service,
+    signer: desk,
+    contracts,
+    publicClient: publicClient as never,
+    store,
+    deskEerc: eerc,
+    deskWallet: deskWallet as never,
+    now: () => now.t,
+  });
+  return { now, state, service, desk: deskService, store, incoming, sent, failTransfers, chainTxs, blockTimes, payouts };
+}
+
+/** Records a public ERC-20 Transfer on the fake chain and returns its tx hash. */
+function publicTransfer(s: ReturnType<typeof setup>, label: string, args: { from: Address; to: Address; value: bigint; token?: Address; at?: bigint }) {
+  const hash = txHash(label);
+  const blockNumber = BigInt(s.chainTxs.size + 100);
+  s.chainTxs.set(hash, {
+    blockNumber,
+    logs: [
+      {
+        address: args.token ?? NVDA_TOKEN,
+        topics: encodeEventTopics({ abi: erc20Abi, eventName: "Transfer", args: { from: args.from, to: args.to } }),
+        data: encodeAbiParameters([{ type: "uint256" }], [args.value]),
+        blockNumber,
+        transactionHash: hash,
+        logIndex: 0,
+      },
+    ],
+  });
+  if (args.at !== undefined) s.blockTimes.set(blockNumber, args.at);
+  return hash;
 }
 
 type S = ReturnType<typeof setup>;
@@ -326,6 +375,38 @@ describe("Hush Desk — statements, sells, settle-outs", () => {
     await expect(s.desk.sell({ quote: quoteToJson(buyQuote.quote), signature: buyQuote.signature }, await voucherFor(s, buyQuote.quote, { add: 0n }))).rejects.toMatchObject({
       code: "invalid_quote",
     });
+  });
+
+  it("public sell: USDC is paid for the matching token transfer, once per transfer and per quote", async () => {
+    const SHARE_CENT = 10n ** 16n;
+    const q = await s.desk.quote({ agent: agent.address, ticker: "NVDA", side: "sell", size: 5n });
+    const signed = { quote: quoteToJson(q.quote), signature: q.signature };
+    const wrong = publicTransfer(s, "short", { from: agent.address, to: desk.address, value: 4n * SHARE_CENT });
+    await expect(s.desk.publicSell(signed, wrong)).rejects.toMatchObject({ code: "invalid_transfer" });
+    const other = publicTransfer(s, "from-stranger", { from: stranger.address, to: desk.address, value: 5n * SHARE_CENT });
+    await expect(s.desk.publicSell(signed, other)).rejects.toMatchObject({ code: "invalid_transfer" });
+
+    const tx = publicTransfer(s, "good", { from: agent.address, to: desk.address, value: 5n * SHARE_CENT });
+    const { fill, payoutTx } = await s.desk.publicSell(signed, tx);
+    expect(s.payouts).toEqual([{ to: agent.address, amount: q.quote.notional }]);
+    expect(fillFromJson(fill.fill)).toMatchObject({ side: 2, size: 5n, price: q.quote.price });
+    expect(payoutTx).toBe(txHash("payout-1"));
+
+    const again = await s.desk.quote({ agent: agent.address, ticker: "NVDA", side: "sell", size: 5n });
+    await expect(s.desk.publicSell({ quote: quoteToJson(again.quote), signature: again.signature }, tx)).rejects.toMatchObject({ code: "duplicate_transfer" });
+    await expect(s.desk.publicSell(signed, publicTransfer(s, "second", { from: agent.address, to: desk.address, value: 5n * SHARE_CENT }))).rejects.toMatchObject({
+      code: "quote_used",
+    });
+  });
+
+  it("public sell: a transfer that landed before the quote expired is honoured even if the claim comes later", async () => {
+    const q = await s.desk.quote({ agent: agent.address, ticker: "NVDA", side: "sell", size: 1n });
+    const tx = publicTransfer(s, "in-time", { from: agent.address, to: desk.address, value: 10n ** 16n, at: q.quote.expiry - 5n });
+    s.now.t += 60_000; // the claim arrives a minute later
+    await s.desk.publicSell({ quote: quoteToJson(q.quote), signature: q.signature }, tx);
+    const late = await s.desk.quote({ agent: agent.address, ticker: "NVDA", side: "sell", size: 1n });
+    const lateTx = publicTransfer(s, "too-late", { from: agent.address, to: desk.address, value: 10n ** 16n, at: late.quote.expiry + 5n });
+    await expect(s.desk.publicSell({ quote: quoteToJson(late.quote), signature: late.signature }, lateTx)).rejects.toMatchObject({ code: "quote_expired" });
   });
 
   it("settle-outs must be signed by the agent or its owner, once, within the position", async () => {

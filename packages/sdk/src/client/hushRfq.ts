@@ -505,7 +505,7 @@ export class HushDeskClient {
    * The agent's own audit of the desk: every statement desk-signed, seq strictly increasing, and each ticker's latest
    * position equal to what the agent's fills and settle-outs add up to. Issues are signed evidence for flagProvider.
    */
-  async verifyPositions(): Promise<{ ok: boolean; positions: DeskPosition[]; issues: string[] }> {
+  async verifyPositions(opts: { baseline?: Partial<Record<string, bigint>> } = {}): Promise<{ ok: boolean; positions: DeskPosition[]; issues: string[] }> {
     const { desk } = await this.ensureTerms();
     await this.settleOuts().catch(() => undefined);
     const positions = await this.positions();
@@ -514,7 +514,9 @@ export class HushDeskClient {
     const seqs = (await this.store.listStatements()).filter((s) => isAddressEqual(s.desk, desk)).map((s) => BigInt(s.statement.seq)).sort((a, b) => (a < b ? -1 : 1));
     for (let i = 1; i < seqs.length; i++) if (seqs[i] === seqs[i - 1]) issues.push(`duplicate statement seq ${seqs[i]}`);
 
-    const expected = new Map<string, bigint>();
+    // `baseline`: positions accepted from an earlier desk-signed statement (a checkpoint), for an agent whose local
+    // ledger doesn't reach back to its first trade.
+    const expected = new Map<string, bigint>(Object.entries(opts.baseline ?? {}).map(([t, v]) => [t, v ?? 0n]));
     for (const f of await this.store.listFills()) {
       if (!isAddressEqual(f.desk, desk)) continue;
       const t = bytes32ToTicker(f.fill.ticker);

@@ -16,3 +16,6 @@ export { HUSH_DEPLOYMENTS } from "./generated/deployments.js";
 export type { HushContracts } from "./types.js";
 export { STOCK_TICKERS, type StockTicker, STOCK_DECIMALS, ORACLE_PRICE_DECIMALS, CENTISHARE } from "./constants.js";
 export { isStockTicker, tickerToBytes32, bytes32ToTicker, formatPrice, stockContracts, latestRound, roundAt, recentRounds, type OracleRound } from "./stocks.js";
+// Reading what an observer sees of an eERC transfer needs only viem + the ABI (no eERC SDK).
+export { readEercTransfer, type EercTransfer } from "./eerc/calldata.js";
+export { formatShares, parseShares } from "./alpha.js";

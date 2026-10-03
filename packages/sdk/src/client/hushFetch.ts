@@ -8,7 +8,7 @@ import type { EercAccount } from "../eerc/account.js";
 import { type HushClientEvent, HushCreditClient } from "./hushCredit.js";
 import { HushDirectClient } from "./hushDirect.js";
 import { HushRfqClient, type TradePolicy } from "./hushRfq.js";
-import { type SpendPolicy, assertPolicy, toX402Policy } from "./policy.js";
+import { type SpendPolicy, assertPolicy, isDeskQuote, toX402Policy } from "./policy.js";
 import type { PrivacyOptions } from "./privacy.js";
 import { type HushStore, MemoryHushStore } from "./store.js";
 
@@ -107,10 +107,11 @@ export function createHushFetch(opts: HushFetchOptions): HushFetch {
     },
   });
 
-  // hush schemes enforce policy and record payments themselves; do the same for the public `exact` scheme.
+  // hush schemes enforce policy and record payments themselves; do the same for the public `exact` scheme. A desk quote
+  // paid with `exact` is a trade: SpendPolicy (API spend) doesn't apply and it is recorded as kind "trade".
   client.onBeforePaymentCreation(async (ctx) => {
     const r = ctx.selectedRequirements;
-    if (r.scheme === EXACT) await assertPolicy(opts.policy, store, getAddress(r.payTo) as Address, BigInt(r.amount));
+    if (r.scheme === EXACT && !isDeskQuote(r)) await assertPolicy(opts.policy, store, getAddress(r.payTo) as Address, BigInt(r.amount));
   });
   client.onAfterPaymentCreation(async (ctx) => {
     const r = ctx.selectedRequirements;
@@ -123,6 +124,7 @@ export function createHushFetch(opts: HushFetchOptions): HushFetch {
       amount: r.amount,
       resource: ctx.paymentRequired.resource.url,
       at: Date.now(),
+      kind: isDeskQuote(r) ? "trade" : "api",
     });
   });
 
