@@ -99,6 +99,7 @@ apps/provider-demo     GET /api/feed (AVAX price + synthetic signal); exact / hu
 apps/agent             Atlas (public) + Veil (hush-credit) agents using Claude (`claude-sonnet-5`)
 apps/price-bot         v2: synthetic mock-stock prices → MockStockOracle every 60 s (viem only, @hush/config/base)
 apps/desk              v2: Hush Desk (:4023) — hush-rfq + exact quotes, custody, sells, settle-outs; in-process facilitator
+apps/mirror            v2: copycat bot (:4033) — copies public trades it infers from chain data; /state + SSE /events
 apps/web               Next.js 16 + R3F + wagmi 2 + viem 2: 3D landing, /demo, consoles, /docs
 ```
 
@@ -162,6 +163,8 @@ new file (or move the old one away). `--with-expiry` needs `CREDIT_TTL_SECONDS=2
 After pulling v2: `pnpm keys` adds the new role keys (existing keys are never overwritten).
 v2 extras: `pnpm price-bot:local` (PRICE_INTERVAL_SECONDS=10 for tests) · `pnpm desk:local` (own DB: `DESK_DB`) ·
 `pnpm desk-e2e:local` (needs price-bot + desk). The desk refuses quotes when the oracle is >600 s old.
+V3: `pnpm mirror:local` → `pnpm mirror-e2e:local`; agents trade with `AGENT_BRAIN=rules pnpm atlas:local -- --ticks N`
+(RULES_MIN_CONFIDENCE=0 / RULES_MAX_AGE_SECONDS=1 make them act every tick). `pnpm demo` now also starts desk + Mirror.
 - P4 agents (Atlas/Veil) on Fuji, owner treasury, MCP server + Claude Desktop config.
 - P5 web landing 3D scene ✅ (2026-09-30): `pnpm web` → http://localhost:3000. Next 16.3.6 pinned (16.3.7 was inside
   pnpm's release-age gate). **apps/web builds with webpack (`--webpack`)**: the SDK's NodeNext `./x.js` specifiers need
@@ -211,5 +214,19 @@ stay unchanged. Commit + push after each phase.
     `HushRfqClient` + `HushDeskClient` (`buy/sell/positions/settleOut/verifyPositions`) + `TradePolicy` (client).
     `createHushFetch` registers hush-rfq and the private selector prefers hush-credit, then hush-rfq.
     `toX402Policy` ignores hush-rfq (TradePolicy governs trades).
-- Next: V3 agents trade + Mirror · V4 Proof of Alpha · V5 MCP + telemetry + auditor CSV · V6 web panels · V7 docs, e2e,
-  demo script
+- V3 ✅ (2026-10-03): agents trade + Mirror. `pnpm mirror-e2e:local` 6/6.
+  - **Agents:** `apps/agent` strategies `trader` (default with desk contracts) / `feed` (v1). The trader loop is: buy a
+    `/api/signal` → decide (`RulesTrader` | `ClaudeTrader`, tools buy_signal / trade / hold) → trade a lot. Atlas and
+    Veil run the same loop and differ only in their venue (`venues.ts`): Atlas uses `HushPublicDesk` (SDK; exact buys,
+    and public sells = token transfer + `POST /public-sell`); Veil uses `HushDeskClient` (hush-rfq).
+  - **Guards** are identical for both agents: lot, max position, per-trade max, daily trade cap, cash. Veil's SDK
+    TradePolicy re-checks them.
+  - **Trades are not API spend:** a desk quote paid with `exact` is recorded as `kind: "trade"`; `spentToday` and
+    `toX402Policy` ignore it.
+  - **Mirror:** discovers the desk and provider from their public `GET /` pages. It polls Transfer logs (mStock to/from
+    the desk; USDC to the desk and the provider) plus eERC `PrivateTransfer` (asset via calldata tokenId), and copies
+    every public trade serially through `HushPublicDesk`. It reports per-target trades seen/copied, chain-time lag,
+    target P&L vs copy P&L, and what it can see. Veil shows up as encrypted hUSDC transfers or not at all.
+  - **Chain clock drift:** a local hardhat chain runs ahead of wall time under bursts of txs. The desk's public-sell
+    expiry check corrects for it; Mirror measures lag block-to-block.
+- Next: V4 Proof of Alpha · V5 MCP + telemetry + auditor CSV · V6 web panels · V7 docs, e2e, demo script
