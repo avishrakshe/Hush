@@ -11,6 +11,12 @@ export const HUSH_DEPLOYMENTS: Record<number, HushContracts> = {
     "registrar": "0x9F674A79fcEc3B472A35895ab6a4FA870200B34b",
     "usdc": "0x77a5b64985b910652826183213d12bf3dc2DeCF7",
     "hushRegistry": "0x8CdEaaF16304a6E03002b90a6029b8E79e221ef6",
-    "hushLedger": "0x1D6ee5d0AA41f191A361C4306EbCc9E2Aa387577"
+    "hushLedger": "0x1D6ee5d0AA41f191A361C4306EbCc9E2Aa387577",
+    "stockOracle": "0x61B554EE20BbAe5456c795a106BAdEAEdf655236",
+    "stocks": {
+      "NVDA": "0xd4F3f123C3432FB85B8e57f1ABBAef54829470F2",
+      "TSLA": "0xa4F143Ab50BF1663Be8a3B500DfA4EfD179b0156",
+      "SPY": "0x2cB23Ab31589240d81b8a56b361D8dA0cE5C1538"
+    }
   }
 };

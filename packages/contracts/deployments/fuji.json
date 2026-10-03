@@ -59,6 +59,27 @@
       "address": "0x1D6ee5d0AA41f191A361C4306EbCc9E2Aa387577",
       "txHash": "0xf423dcbac5e99d81678b0bb80309170ea61e8c46bb61f1cc5639e15f8faf3c7c",
       "blockNumber": 58828840
+    },
+    "MockStockOracle": {
+      "address": "0x61B554EE20BbAe5456c795a106BAdEAEdf655236",
+      "txHash": "0x378e476f26cbf4d8e85ce8d822734cca5ddc226cd3beffd74de09f2458940676",
+      "blockNumber": 58998323
+    },
+    "mNVDA": {
+      "address": "0xd4F3f123C3432FB85B8e57f1ABBAef54829470F2",
+      "txHash": "0x350a81bb98d97fbb0978733bf57a895d67531d1c28e35da3636b6d9ece952d45",
+      "blockNumber": 58998325
+    },
+    "mTSLA": {
+      "address": "0xa4F143Ab50BF1663Be8a3B500DfA4EfD179b0156",
+      "txHash": "0xcebbbea0ae3db2d9755b655de958a90c61e628c21ff19eb5bd611f8a6544cf87",
+      "blockNumber": 58998326
+    },
+    "mSPY": {
+      "address": "0x2cB23Ab31589240d81b8a56b361D8dA0cE5C1538",
+      "txHash": "0xfc1518e2ff7e6ff4f64707a927a7b8cab5164c8e82b7e12b32a053459e38b463",
+      "blockNumber": 58998329
     }
-  }
+  },
+  "stocksDeployedAt": "2026-10-03T09:19:15.498Z"
 }
