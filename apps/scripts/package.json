@@ -12,6 +12,8 @@
     "e2e:local": "tsx src/e2e.ts --local",
     "desk-e2e": "tsx src/desk-e2e.ts",
     "desk-e2e:local": "tsx src/desk-e2e.ts --local",
+    "mirror-e2e": "tsx src/mirror-e2e.ts",
+    "mirror-e2e:local": "tsx src/mirror-e2e.ts --local",
     "demo": "tsx src/demo.ts",
     "demo:local": "tsx src/demo.ts --local",
     "typecheck": "tsc --noEmit"

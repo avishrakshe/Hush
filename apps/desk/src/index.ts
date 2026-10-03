@@ -14,7 +14,7 @@
  *
  *   pnpm desk   (Fuji)   ·   pnpm desk:local
  */
-import { NETWORK, PORTS, URLS, publicClient, txLink } from "@hush/config";
+import { NETWORK, PORTS, URLS, publicClient, stateTag, txLink } from "@hush/config";
 import { createFacilitator, log } from "@hush/facilitator/app";
 import { SqliteDeskStore } from "@hush/facilitator/desk-store";
 import { CREDIT_AUTH_HEADER, EXACT, HUSH_RFQ, STOCK_TICKERS, type Side, formatShares, parseShares, quoteToJson, tickerToBytes32 } from "@hush/x402";
@@ -38,7 +38,7 @@ const f = await createFacilitator({
   role: "DESK",
   committerRole: "DESK", // the desk commits its own batches (HushLedger accepts the provider itself)
   name: "desk",
-  dbFile: process.env.DESK_DB || path.join(APP_DIR, ".data", `desk-${NETWORK}.db`),
+  dbFile: process.env.DESK_DB || path.join(APP_DIR, ".data", `desk-${NETWORK}${await stateTag()}.db`),
   adminToken: process.env.DESK_ADMIN_TOKEN,
 });
 const { contracts, network } = f;
@@ -220,6 +220,17 @@ app.post(
     send(res, await desk.sell({ quote, signature: quoteSignature }, payment));
   }),
 );
+// Public sell: the seller already transferred plain tokens to the desk; pay USDC for that transfer at the quote.
+app.post(
+  "/public-sell",
+  wrap(async (req, res) => {
+    const { quote, quoteSignature, txHash } = req.body as { quote?: never; quoteSignature?: Hex; txHash?: string };
+    if (!quote || !quoteSignature || !txHash) throw new HushError("invalid_request", "expected { quote, quoteSignature, txHash }");
+    const out = await desk.publicSell({ quote, signature: quoteSignature }, f.hashParam(txHash));
+    log(`public sell: payout ${txLink(out.payoutTx)} for ${txLink(txHash)}`);
+    send(res, out);
+  }),
+);
 app.get(
   "/positions/:agent",
   wrap(async (req, res) => send(res, await desk.positions(await f.service.assertAgentOrOwner(addressParam(req.params.agent), req.get(CREDIT_AUTH_HEADER))))),
@@ -244,6 +255,7 @@ app.get("/", (_req, res) =>
   send(res, {
     name: "Hush Desk",
     desk: desk.desk,
+    hushAlpha: contracts.hushAlpha,
     network: NETWORK,
     schemes: [HUSH_RFQ, EXACT],
     tickers: STOCK_TICKERS,

@@ -97,6 +97,13 @@ async function main() {
     return `owner allocated ${formatUsdc(eercToAtomic(needed, contracts.eercDecimals))} privately ${txLink(txHash)}`;
   });
 
+  // Veil may already hold positions from earlier agent runs on this chain; audit from that desk-signed checkpoint.
+  let baseline: Record<string, bigint> = {};
+  await check("checkpoint: Veil's current desk positions (desk-signed)", async () => {
+    baseline = Object.fromEntries((await desk.positions()).map((p) => [p.ticker, p.position]));
+    return Object.keys(baseline).length ? Object.entries(baseline).map(([t, v]) => `${t} ${formatShares(v)}`).join(" · ") : "no positions yet";
+  });
+
   // ── 1. the 402 is the quote ──
   let probeQuote: Quote | undefined;
   await check("402 offers hush-rfq + exact with one desk-signed quote (checked on HushAlpha)", async () => {
@@ -258,7 +265,7 @@ async function main() {
   });
 
   await check("Veil audits the desk: statements signed, seq increasing, positions = own fills − sells − settle-outs", async () => {
-    const audit = await desk.verifyPositions();
+    const audit = await desk.verifyPositions({ baseline });
     assert(audit.ok, audit.issues.join("; "));
     const fills = (await veilPay.store.listFills()).map((f) => fillFromJson(f.fill));
     const nvda = audit.positions.find((p) => p.ticker === "NVDA");

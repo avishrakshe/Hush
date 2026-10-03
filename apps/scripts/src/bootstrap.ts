@@ -29,18 +29,21 @@ import {
 import { type Address, formatUnits, isAddressEqual, parseUnits } from "viem";
 
 const contracts = loadContracts();
-const [deployer, auditor, owner, atlas, veil, provider, facilitator, desk, pricebot] = (
-  ["DEPLOYER", "AUDITOR", "OWNER", "ATLAS", "VEIL", "PROVIDER", "FACILITATOR", "DESK", "PRICEBOT"] as const
+const [deployer, auditor, owner, atlas, veil, provider, facilitator, desk, pricebot, mirror] = (
+  ["DEPLOYER", "AUDITOR", "OWNER", "ATLAS", "VEIL", "PROVIDER", "FACILITATOR", "DESK", "PRICEBOT", "MIRROR"] as const
 ).map((r) => wallet(r));
 
 const PROVIDER_ENDPOINT = process.env.PROVIDER_URL || "http://localhost:4021";
 const DESK_ENDPOINT = process.env.DESK_URL || "http://localhost:4023";
 const DESK_PUBLIC_INVENTORY = parseUnits("500", 18); //  plain mStock per ticker, delivered publicly to `exact` buyers
 const DESK_PRIVATE_INVENTORY = parseUnits("100", 18); // per ticker into eERC (hStock), for private settle-outs
-const OWNER_USDC = 200_000_000n; // 200 USDC treasury
-const ATLAS_USDC = 50_000_000n; //   50 USDC for public calls
-const OWNER_DEPOSIT = 100_000_000n; // 100 USDC → hUSDC
-const VEIL_ALLOCATION = 2_500n; //      25.00 hUSDC (eERC units) privately allocated to Veil
+// v2 raised these so both agents can trade a few lots (~$9 each) at the desk, not just buy $0.02 data calls.
+const OWNER_USDC = 500_000_000n; //  500 USDC treasury
+const ATLAS_USDC = 200_000_000n; //  200 USDC for public calls and public trades
+const OWNER_DEPOSIT = 200_000_000n; // 200 USDC → hUSDC
+const VEIL_ALLOCATION = 10_000n; //    100.00 hUSDC (eERC units) privately allocated to Veil
+const DESK_USDC = 2_000_000_000n; //   2,000 USDC: the desk pays public sellers in USDC
+const MIRROR_USDC = 200_000_000n; //   200 USDC: Mirror pays for the trades it copies
 
 const step = (n: number, title: string) => console.log(`\n${n}. ${title}`);
 const ok = (msg: string) => console.log(`   ✓ ${msg}`);
@@ -168,6 +171,17 @@ async function bootstrapStocks(oracle: Address, stocks: NonNullable<typeof contr
     });
     ok(`registered desk ${desk!.address} as a provider  ${txLink(hash)}`);
   } else ok(`desk ${desk!.address} already registered`);
+
+  // USDC for the public path: the desk pays public sellers; Mirror pays for the trades it copies (MockUSDC faucet).
+  for (const [w, target] of [[desk!, DESK_USDC], [mirror!, MIRROR_USDC]] as const) {
+    const bal = await publicClient.readContract({ address: contracts.usdc, abi: mockUsdcAbi, functionName: "balanceOf", args: [w.address] });
+    if (bal >= target / 2n) {
+      ok(`${w.role} has ${formatUnits(bal, 6)} USDC`);
+      continue;
+    }
+    const hash = await w.walletClient.writeContract({ address: contracts.usdc, abi: mockUsdcAbi, functionName: "mint", args: [w.address, target] });
+    await waitOk(hash, `minted ${formatUnits(target, 6)} USDC to ${w.role}`);
+  }
 
   for (const ticker of STOCK_TICKERS) {
     const token = stocks[ticker];

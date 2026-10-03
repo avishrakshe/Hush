@@ -18,7 +18,7 @@ export const PROFILES: Record<AgentProfile["id"], AgentProfile> = {
     role: "ATLAS",
     mode: "public",
     port: Number(process.env.ATLAS_PORT || 4031),
-    tagline: "pays with public x402 — every purchase, amount and cadence is visible on-chain",
+    tagline: "pays and trades with public x402 — every purchase, trade, size and cadence is visible on-chain",
   },
   veil: {
     id: "veil",
@@ -26,7 +26,7 @@ export const PROFILES: Record<AgentProfile["id"], AgentProfile> = {
     role: "VEIL",
     mode: "hush-credit",
     port: Number(process.env.VEIL_PORT || 4032),
-    tagline: "pays with Hush — encrypted top-ups and off-chain vouchers; only its owner (and the auditor) can see the details",
+    tagline: "pays and trades with Hush — encrypted top-ups, off-chain vouchers, custodied positions; only its owner (and the auditor) can see the details",
   },
 };
 

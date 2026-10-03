@@ -1,14 +1,15 @@
 /**
  * One command for the live demo stack (Fuji unless --local):
  *
- *   price-bot (when stocks are deployed) → facilitator :4022 → provider :4021 → operator :4040 → Atlas :4031 + Veil :4032
+ *   price-bot → facilitator :4022 → provider :4021 → desk :4023 → operator :4040 → Mirror :4033 → Atlas :4031 + Veil :4032
  *
  * Then `pnpm web` and open http://localhost:3000/demo. Ctrl+C stops everything (whole process trees).
  *
- *   pnpm demo [--local] [--only price-bot,facilitator,provider,operator,atlas,veil]
+ *   pnpm demo [--local] [--only price-bot,facilitator,provider,desk,operator,mirror,atlas,veil]
  *
  * Demo pacing defaults (override via env): AGENT_BRAIN=rules, AGENT_INTERVAL_SECONDS=15, RULES_MAX_AGE_SECONDS=20,
- * AGENT_DAILY_CAP_USD=3. Set AGENT_BRAIN=claude to let Claude make the buy/wait calls instead.
+ * AGENT_DAILY_CAP_USD=3. Set AGENT_BRAIN=claude to let Claude make the buy/trade/hold calls instead. The agents run the
+ * v2 trading strategy when the desk contracts are deployed (AGENT_STRATEGY=feed for the v1 data-only loop).
  */
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 
@@ -29,7 +30,9 @@ const SERVICES = [
   { name: "price-bot", color: 32, filter: "@hush/price-bot", script: "start" },
   { name: "facilitator", color: 36, filter: "@hush/facilitator", script: "start", health: `http://127.0.0.1:${process.env.FACILITATOR_PORT || 4022}/health` },
   { name: "provider", color: 33, filter: "@hush/provider-demo", script: "start", health: `http://127.0.0.1:${process.env.PROVIDER_PORT || 4021}/health` },
+  { name: "desk", color: 96, filter: "@hush/desk", script: "start", health: `http://127.0.0.1:${process.env.DESK_PORT || 4023}/health` },
   { name: "operator", color: 35, filter: "@hush/operator", script: "start", health: `http://127.0.0.1:${process.env.OPERATOR_PORT || 4040}/health` },
+  { name: "mirror", color: 91, filter: "@hush/mirror", script: "start", health: `http://127.0.0.1:${process.env.MIRROR_PORT || 4033}/health` },
   { name: "atlas", color: 31, filter: "@hush/agent", script: "atlas" },
   { name: "veil", color: 34, filter: "@hush/agent", script: "veil" },
 ] as const;
