@@ -17,6 +17,7 @@
     "fund:fuji": "tsx scripts/fund-roles.mts",
     "deploy:fuji": "hardhat run scripts/deploy.ts --network fuji",
     "deploy:stocks:fuji": "hardhat run scripts/deploy-stocks.ts --network fuji",
+    "deploy:alpha:fuji": "hardhat run scripts/deploy-alpha.ts --network fuji",
     "verify:fuji": "hardhat run scripts/verify.ts --network fuji",
     "prove:fuji": "tsx scripts/prove-eerc.mts",
     "status": "tsx scripts/status.mts",

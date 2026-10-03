@@ -43,6 +43,7 @@ async function main() {
     { name: "HushLedger", address: c.HushLedger.address, constructorArguments: [c.HushRegistry.address] },
   ];
   if (c.MockStockOracle) jobs.push({ name: "MockStockOracle", address: c.MockStockOracle.address, constructorArguments: [] });
+  if (c.HushAlpha) jobs.push({ name: "HushAlpha", address: c.HushAlpha.address, constructorArguments: [d.hushAlphaEpochLen ?? 600] });
   for (const s of STOCKS) {
     const token = c[s.symbol];
     if (!token) continue;

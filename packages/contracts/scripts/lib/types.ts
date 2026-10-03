@@ -26,6 +26,12 @@ export interface StockContracts {
   mSPY: DeployedContract;
 }
 
+/**
+ * Proof-of-Alpha epoch length. Fuji: 10 minutes. Local chains: 1 minute, so a demo shows committed epochs (and a
+ * provider's chain diverging) in minutes rather than hours.
+ */
+export const alphaEpochLen = (network: string) => Number(process.env.EPOCH_LEN_SECONDS || (network === "localhost" ? 60 : 600));
+
 export interface HushDeployment {
   network: string;
   chainId: number;
@@ -34,6 +40,8 @@ export interface HushDeployment {
   eercDecimals: number;
   /** Set when the v2 stock contracts were added to an existing deployment. */
   stocksDeployedAt?: string;
+  /** HushAlpha constructor argument (seconds), recorded for verification and clients. */
+  hushAlphaEpochLen?: number;
   contracts: {
     RegistrationVerifier: DeployedContract;
     MintVerifier: DeployedContract;
@@ -46,5 +54,5 @@ export interface HushDeployment {
     MockUSDC: DeployedContract;
     HushRegistry: DeployedContract;
     HushLedger: DeployedContract;
-  } & Partial<StockContracts>;
+  } & Partial<StockContracts> & { HushAlpha?: DeployedContract };
 }

@@ -2,7 +2,7 @@ import type { HardhatRuntimeEnvironment } from "hardhat/types";
 import { type DeployedContract, type HushDeployment, STOCK_FAUCET_CAP, STOCKS, type StockContracts } from "./types";
 
 export type { DeployedContract, HushDeployment, StockContracts } from "./types";
-export { STOCK_FAUCET_CAP, STOCKS } from "./types";
+export { STOCK_FAUCET_CAP, STOCKS, alphaEpochLen } from "./types";
 
 /** eERC token decimals. 2 matches the reference converter deployment (0.01 hUSDC granularity). */
 export const EERC_DECIMALS = 2;
@@ -118,4 +118,16 @@ export async function deployStockStack(
   await tx.wait();
 
   return { MockStockOracle, ...tokens };
+}
+
+/**
+ * v2: HushAlpha — EIP-712 domain for desk quotes/fills/statements and signal records, plus per-epoch chain heads.
+ * Standalone (no constructor dependencies), so it can be added to a live deployment with `deploy-alpha.ts`.
+ */
+export async function deployAlphaStack(
+  hre: HardhatRuntimeEnvironment,
+  opts: { epochLen: number; log?: (msg: string) => void },
+): Promise<{ HushAlpha: DeployedContract }> {
+  const deploy = contractDeployer(hre, opts.log ?? (() => {}));
+  return { HushAlpha: await deploy("HushAlpha", [opts.epochLen]) };
 }
