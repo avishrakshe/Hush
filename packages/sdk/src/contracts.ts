@@ -18,4 +18,30 @@ export { STOCK_TICKERS, type StockTicker, STOCK_DECIMALS, ORACLE_PRICE_DECIMALS,
 export { isStockTicker, tickerToBytes32, bytes32ToTicker, formatPrice, stockContracts, latestRound, roundAt, recentRounds, type OracleRound } from "./stocks.js";
 // Reading what an observer sees of an eERC transfer needs only viem + the ABI (no eERC SDK).
 export { readEercTransfer, type EercTransfer } from "./eerc/calldata.js";
-export { formatShares, parseShares } from "./alpha.js";
+export { formatShares, parseShares, alphaDomain, signalFromJson, signalToJson, signalTyped } from "./alpha.js";
+// Proof of Alpha verification is viem-only, so a browser can check a provider's record itself.
+export {
+  AlphaChain,
+  epochDigest,
+  epochOf,
+  leafHash,
+  leafTime,
+  nextHead,
+  verifyProof,
+  gradeSignal,
+  summarize,
+  checkProvider,
+  chooseProvider,
+  type AlphaPolicy,
+  type ProviderAlphaInfo,
+  type ProviderCheck,
+  type AlphaClaims,
+  type AlphaLeaf,
+  type AlphaLeafKind,
+  type AlphaProof,
+  type GradedCall,
+  type ProofReport,
+  type VerifyOptions,
+} from "./proofOfAlpha.js";
+export { DIRECTION } from "./constants.js";
+export type { SignalRecord, SignalRecordJson } from "./types.js";

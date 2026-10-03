@@ -41,11 +41,14 @@ export const PORTS = {
   provider: Number(process.env.PROVIDER_PORT || 4021),
   /** v2: Hush Desk (quotes, custody, settle-outs) with its own in-process facilitator. */
   desk: Number(process.env.DESK_PORT || 4023),
+  /** v2: AlphaKing, the cherry-picking signal provider (served by the provider-demo process). */
+  alphaking: Number(process.env.ALPHAKING_PORT || 4025),
 };
 export const URLS = {
   facilitator: process.env.FACILITATOR_URL || `http://localhost:${PORTS.facilitator}`,
   provider: process.env.PROVIDER_URL || `http://localhost:${PORTS.provider}`,
   desk: process.env.DESK_URL || `http://localhost:${PORTS.desk}`,
+  alphaking: process.env.ALPHAKING_URL || `http://localhost:${PORTS.alphaking}`,
 };
 
 export function loadContracts(network: NetworkName = NETWORK): HushContracts {
@@ -81,9 +84,10 @@ export function loadContracts(network: NetworkName = NETWORK): HushContracts {
   };
 }
 
-// v1 roles first; DESK (market maker), ALPHAKING (dishonest signal provider), MIRROR (copycat bot) and PRICEBOT
-// (oracle updater) were added for v2.
-export const ROLES = ["DEPLOYER", "AUDITOR", "OWNER", "ATLAS", "VEIL", "PROVIDER", "FACILITATOR", "DESK", "ALPHAKING", "MIRROR", "PRICEBOT"] as const;
+// v1 roles first; DESK (market maker), ALPHAKING (dishonest signal provider), MIRROR (copycat bot), PRICEBOT
+// (oracle updater) and COMMITTER (Proof of Alpha chain heads; its own key so commits never race a provider's nonces)
+// were added for v2.
+export const ROLES = ["DEPLOYER", "AUDITOR", "OWNER", "ATLAS", "VEIL", "PROVIDER", "FACILITATOR", "DESK", "ALPHAKING", "MIRROR", "PRICEBOT", "COMMITTER"] as const;
 export type Role = (typeof ROLES)[number];
 
 export function roleKey(role: Role): Hex {
