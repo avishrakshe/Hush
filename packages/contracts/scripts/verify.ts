@@ -5,7 +5,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import hre from "hardhat";
-import type { HushDeployment } from "./lib/deployStack";
+import { type HushDeployment, STOCK_FAUCET_CAP, STOCKS } from "./lib/deployStack";
 
 async function main() {
   const file = path.join(__dirname, "..", "deployments", `${hre.network.name}.json`);
@@ -42,6 +42,16 @@ async function main() {
     { name: "HushRegistry", address: c.HushRegistry.address, constructorArguments: [c.Registrar.address] },
     { name: "HushLedger", address: c.HushLedger.address, constructorArguments: [c.HushRegistry.address] },
   ];
+  if (c.MockStockOracle) jobs.push({ name: "MockStockOracle", address: c.MockStockOracle.address, constructorArguments: [] });
+  for (const s of STOCKS) {
+    const token = c[s.symbol];
+    if (!token) continue;
+    jobs.push({
+      name: s.symbol,
+      address: token.address,
+      constructorArguments: [s.name, s.symbol, hre.ethers.encodeBytes32String(s.ticker), STOCK_FAUCET_CAP],
+    });
+  }
 
   // Routescan sometimes accepts a submission but its status endpoint never leaves "pending", and hardhat-verify polls
   // forever. Cap each job; the source is usually verified anyway (re-run to confirm — verified ones are skipped).

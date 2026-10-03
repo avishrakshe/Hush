@@ -10,7 +10,8 @@ export const ENV_PATH = path.join(REPO_ROOT, ".env");
 
 config({ path: ENV_PATH, quiet: true });
 
-export const ROLES = ["DEPLOYER", "AUDITOR", "OWNER", "ATLAS", "VEIL", "PROVIDER", "FACILITATOR"] as const;
+// Keep in sync with packages/config ROLES (v2 added DESK, ALPHAKING, MIRROR, PRICEBOT).
+export const ROLES = ["DEPLOYER", "AUDITOR", "OWNER", "ATLAS", "VEIL", "PROVIDER", "FACILITATOR", "DESK", "ALPHAKING", "MIRROR", "PRICEBOT"] as const;
 export type Role = (typeof ROLES)[number];
 
 /** Which chain the .mts scripts target. `localhost` = a `hardhat node` for fully offline dry runs. */

@@ -5,7 +5,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import hre from "hardhat";
-import { deployHushStack } from "./lib/deployStack";
+import { deployHushStack, deployStockStack } from "./lib/deployStack";
 
 const EXPLORERS: Record<string, string> = {
   fuji: "https://testnet.snowtrace.io",
@@ -34,6 +34,8 @@ async function main() {
 
   console.log("Deploying:");
   const deployment = await deployHushStack(hre, { log: console.log });
+  // A fresh deployment always includes the v2 stocks; live deployments get them via deploy-stocks.ts.
+  deployment.contracts = { ...deployment.contracts, ...(await deployStockStack(hre, { log: console.log })) };
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, `${JSON.stringify(deployment, null, 2)}\n`);
 

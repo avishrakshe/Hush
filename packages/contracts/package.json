@@ -2,7 +2,7 @@
   "name": "@hush/contracts",
   "version": "0.1.0",
   "private": true,
-  "description": "Hush contracts: vendored eERC (converter), MockUSDC (EIP-3009), HushRegistry, HushLedger",
+  "description": "Hush contracts: vendored eERC (converter), MockUSDC (EIP-3009), HushRegistry, HushLedger, mock stocks + oracle",
   "license": "MIT",
   "scripts": {
     "compile": "hardhat compile",
@@ -16,6 +16,7 @@
     "prove:local": "tsx scripts/prove-eerc.mts --local",
     "fund:fuji": "tsx scripts/fund-roles.mts",
     "deploy:fuji": "hardhat run scripts/deploy.ts --network fuji",
+    "deploy:stocks:fuji": "hardhat run scripts/deploy-stocks.ts --network fuji",
     "verify:fuji": "hardhat run scripts/verify.ts --network fuji",
     "prove:fuji": "tsx scripts/prove-eerc.mts",
     "status": "tsx scripts/status.mts",
