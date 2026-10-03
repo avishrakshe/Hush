@@ -5,6 +5,16 @@
   "description": "Hush facilitator: x402 v2 /verify /settle for exact + hush-credit + hush-direct, private top-ups, receipts, refunds, Merkle batches, SSE",
   "license": "MIT",
   "type": "module",
+  "exports": {
+    "./app": {
+      "types": "./src/app.ts",
+      "default": "./src/app.ts"
+    },
+    "./desk-store": {
+      "types": "./src/db/deskStore.ts",
+      "default": "./src/db/deskStore.ts"
+    }
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",

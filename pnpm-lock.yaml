@@ -39,6 +39,46 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
 
+  apps/desk:
+    dependencies:
+      '@hush/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@hush/facilitator':
+        specifier: workspace:*
+        version: link:../facilitator
+      '@hush/x402':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@x402/core':
+        specifier: ~2.27.0
+        version: 2.27.0
+      '@x402/evm':
+        specifier: ~2.27.0
+        version: 2.27.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@x402/express':
+        specifier: ~2.27.0
+        version: 2.27.0(bufferutil@4.1.0)(ethers@6.17.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(express@5.2.1(supports-color@8.1.1))(typescript@5.9.3)(utf-8-validate@5.0.10)
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1(supports-color@8.1.1)
+      viem:
+        specifier: ^2.56.9
+        version: 2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.6.5)
+    devDependencies:
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/node':
+        specifier: ^22.20.4
+        version: 22.20.4
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
   apps/facilitator:
     dependencies:
       '@hush/config':
@@ -171,6 +211,9 @@ importers:
       '@hush/x402':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@x402/core':
+        specifier: ~2.27.0
+        version: 2.27.0
       '@x402/fetch':
         specifier: ~2.27.0
         version: 2.27.0
@@ -7866,12 +7909,12 @@ snapshots:
       '@noble/hashes': 1.8.0
       apg-js: 4.4.0
 
-  '@signinwithethereum/siwe@4.2.1(ethers@6.17.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))':
+  '@signinwithethereum/siwe@4.2.1(ethers@6.17.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.6.5))':
     dependencies:
       '@signinwithethereum/siwe-parser': 4.2.1
     optionalDependencies:
       ethers: 6.17.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-      viem: 2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+      viem: 2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.6.5)
 
   '@socket.io/component-emitter@3.1.2': {}
 
@@ -9262,7 +9305,7 @@ snapshots:
     dependencies:
       '@noble/curves': 1.9.7
       '@scure/base': 1.2.6
-      '@signinwithethereum/siwe': 4.2.1(ethers@6.17.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
+      '@signinwithethereum/siwe': 4.2.1(ethers@6.17.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.6.5))
       '@x402/core': 2.27.0
       ajv: 8.20.0
       jose: 5.10.0

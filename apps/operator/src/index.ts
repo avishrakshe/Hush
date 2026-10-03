@@ -32,7 +32,7 @@ import {
   voucherFromJson,
 } from "@hush/x402";
 import { HushFacilitatorApi } from "@hush/x402/client";
-import type { HushStoreData } from "@hush/x402/client";
+import { type HushStoreData, emptyStoreData } from "@hush/x402/client";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -254,9 +254,9 @@ app.get(
 
 function readLedger(id: AgentId): HushStoreData {
   const file = path.join(AGENT_DATA, `${id}-${NETWORK}.json`);
-  if (!existsSync(file)) return { payments: [], vouchers: [], receipts: [], refunds: [] };
-  // Read-only: the running agent owns this file.
-  return JSON.parse(readFileSync(file, "utf8")) as HushStoreData;
+  if (!existsSync(file)) return emptyStoreData();
+  // Read-only: the running agent owns this file. Files written before v2 lack the trading arrays.
+  return { ...emptyStoreData(), ...(JSON.parse(readFileSync(file, "utf8")) as Partial<HushStoreData>) };
 }
 
 /** Per-leaf on-chain inclusion results (this process only; never written back into the agent's file). */

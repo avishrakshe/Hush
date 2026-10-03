@@ -48,6 +48,7 @@ export class SqliteCreditStore implements CreditStore {
       creditedTotal: BigInt(row?.creditedTotal ?? 0),
       refundedTotal: BigInt(row?.refundedTotal ?? 0),
       settledCumulative: BigInt(row?.settledCumulative ?? 0),
+      proceedsTotal: BigInt(row?.proceedsTotal ?? 0),
       lastNonce: BigInt(row?.lastNonce ?? 0),
       lastTopUpAt: row?.lastTopUpAt ?? null,
     };
@@ -60,6 +61,7 @@ export class SqliteCreditStore implements CreditStore {
       creditedTotal: r.creditedTotal.toString(),
       refundedTotal: r.refundedTotal.toString(),
       settledCumulative: r.settledCumulative.toString(),
+      proceedsTotal: r.proceedsTotal.toString(),
       lastNonce: r.lastNonce.toString(),
       lastTopUpAt: r.lastTopUpAt,
     };
@@ -82,6 +84,7 @@ export class SqliteCreditStore implements CreditStore {
         creditedTotal: BigInt(row.creditedTotal),
         refundedTotal: BigInt(row.refundedTotal),
         settledCumulative: BigInt(row.settledCumulative),
+        proceedsTotal: BigInt(row.proceedsTotal),
         lastNonce: BigInt(row.lastNonce),
         lastTopUpAt: row.lastTopUpAt,
       }));
