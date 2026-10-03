@@ -17,6 +17,7 @@ export const HUSH_DEPLOYMENTS: Record<number, HushContracts> = {
       "NVDA": "0xd4F3f123C3432FB85B8e57f1ABBAef54829470F2",
       "TSLA": "0xa4F143Ab50BF1663Be8a3B500DfA4EfD179b0156",
       "SPY": "0x2cB23Ab31589240d81b8a56b361D8dA0cE5C1538"
-    }
+    },
+    "hushAlpha": "0xA45c0B7F393692DC7ad6c2dA287EA8415a779079"
   }
 };

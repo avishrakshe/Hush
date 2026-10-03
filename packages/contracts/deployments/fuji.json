@@ -79,7 +79,13 @@
       "address": "0x2cB23Ab31589240d81b8a56b361D8dA0cE5C1538",
       "txHash": "0xfc1518e2ff7e6ff4f64707a927a7b8cab5164c8e82b7e12b32a053459e38b463",
       "blockNumber": 58998329
+    },
+    "HushAlpha": {
+      "address": "0xA45c0B7F393692DC7ad6c2dA287EA8415a779079",
+      "txHash": "0x85ac29411cb5fd7ae525536fcb34a1786799505a16ad105b257b2e9abf34b010",
+      "blockNumber": 59004670
     }
   },
-  "stocksDeployedAt": "2026-10-03T09:19:15.498Z"
+  "stocksDeployedAt": "2026-10-03T09:19:15.498Z",
+  "hushAlphaEpochLen": 600
 }
