@@ -67,8 +67,11 @@ agent's eERC key. Auditor: eERC contract-level auditor key decrypts every amount
   with the prebuilt circuits in `packages/contracts/circuits` (trusted setup matches). eERC decimals = 2.
 - Auditor must be set (`setAuditorPublicKey(registeredAddress)`, eERC owner only) before any deposit/transfer.
   Rotation = call again; auditor only sees txs made while its key was set.
-- One outgoing eERC tx per account at a time (proof binds current balance). `MAX_PENDING_AMOUNT_PCTS = 300`
-  unspent incoming transfers per account → facilitator must periodically spend (refund/sweep).
+- One outgoing eERC tx per account **and token** at a time (proof binds current balance). `MAX_PENDING_AMOUNT_PCTS = 300`
+  unspent incoming transfers per **(account, tokenId)** → facilitator must periodically spend (refund/sweep) per token.
+- Converter is multi-token: first deposit of any non-blacklisted ERC-20 registers it (permissionless `_addToken`);
+  tokenIds start at 1 in first-deposit order → read `tokenIds(token)`, never hardcode. 18-dp tokens: unit = 0.01
+  (scaled ×1e16, dust returned). `transfer` calldata exposes `to` + `tokenId` (asset), not the amount.
 - Receiver decrypts a transfer: decode `transfer` calldata → `proof.publicSignals[16..22]` (receiver PCT, constrained
   by the circuit) → `EERC.decryptPCT()`. Auditor PCT = `publicSignals[25..31]` / `PrivateTransfer` event.
 - SDK: **`@avalabs/eerc-sdk@1.0.2`** (viem 2 / wagmi 2; ESM-only; imports react+wagmi at top level; not
@@ -156,3 +159,12 @@ Stop services by port (4022 facilitator, 4021 provider), never by command-line p
 - P7 ship: README (Mermaid, addresses, Avalanche-specific, related work, limitations, pre-existing vs built-during,
   AI tools used), `.env.example`, npm-ready `@hush/x402` + `@hush/mcp`, mainnet deploy, 3-min demo script.
 - Stretch (only if solid by ~day 17): agent-only L1 with tx-allowlist precompile + ICTT USDC; selective-disclosure receipts.
+
+## v2 track: LEARN → TRADE → HOLD → PROVE (plan + decisions D1–D12: `docs/v2-plan.md`)
+Mock stocks + oracle + paid signals → Hush Desk (`hush-rfq`: the 402 *is* the desk-signed quote; payment = a Hush
+voucher whose requestHash is the quote digest) → custodied positions (signed statements, settle-out via eERC) →
+Proof of Alpha (`HushAlpha.sol` chain heads, commit the just-closed epoch) + Mirror copycat demo. HushLedger/HushRegistry
+stay unchanged. Commit + push after each phase.
+- V0 audit & plan ✅ (2026-10-03)
+- V1 mock stocks, oracle, price-bot, `/api/signal` · V2 HushAlpha + desk (buy, settle-out; then sell) · V3 agents trade +
+  Mirror · V4 Proof of Alpha · V5 MCP + telemetry + auditor CSV · V6 web panels · V7 docs, e2e, demo script
