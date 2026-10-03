@@ -1,0 +1,23 @@
+{
+  "name": "@hush/price-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Posts synthetic mock-stock prices (seeded, mean-reverting random walk) to MockStockOracle",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "start:local": "tsx src/index.ts --local",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hush/config": "workspace:*",
+    "@hush/x402": "workspace:*",
+    "viem": "^2.56.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}

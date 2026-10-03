@@ -1,7 +1,7 @@
 /**
  * P3 end-to-end check against a running facilitator + provider-demo.
  *
- *   public `exact` (Atlas) · hush-credit (Veil): top-up + CreditReceipt + vouchers · signed credit reads · what the public sees ·
+ *   public `exact` (Atlas) · hush-credit (Veil): top-up + CreditReceipt + vouchers · v2 stock signal · signed credit reads · what the public sees ·
  *   Merkle batch + on-chain inclusion · spend policy · kill switch · flagging · refund · hush-direct ·
  *   privacy options (fixed chunks, jittered pre-emptive top-ups) · optional credit expiry
  *
@@ -14,6 +14,7 @@ import {
   eercToAtomic,
   evidenceHash,
   flagProvider,
+  formatPrice,
   formatUsdc,
   freezeAgent,
   hushDomain,
@@ -24,6 +25,7 @@ import {
   receiptFromJson,
   refundRequestToJson,
   requestHashFor,
+  roundAt,
   signRefundRequest,
   signVoucher,
   unfreezeAgent,
@@ -140,6 +142,19 @@ async function main() {
     const receipts = await veilPay.store.listReceipts();
     topUpTx = receipts.at(-1)?.receipt.topupTxHash;
     return `timings ${timings.join(" · ")}`;
+  });
+
+  await check("v2 signal (Veil, hush-credit): NVDA call quotes the oracle round in force at issuedAt", async () => {
+    if (!contracts.stockOracle) return "skipped — no mock stocks in this deployment";
+    const bad = await fetch(`${URLS.provider}/api/signal?ticker=AAPL`);
+    assert(bad.status === 400, `unknown ticker: expected 400 before the paywall, got ${bad.status}`);
+    const res = await veilPay.fetch(`${URLS.provider}/api/signal?ticker=NVDA`);
+    if (res.status !== 200) throw new Error(`status ${res.status} ${await res.text()}`);
+    assert(paymentResponse(res)?.success, "not settled");
+    const s = (await res.json()) as { direction: string; confidence: number; issuedAt: number; horizonSec: number; source: { priceAtomic: string } };
+    const round = await roundAt(publicClient, contracts.stockOracle, "NVDA", BigInt(s.issuedAt));
+    assert(round.price === BigInt(s.source.priceAtomic), `signal price ${s.source.priceAtomic} ≠ oracle ${round.price} at issuedAt`);
+    return `${s.direction} (${s.confidence}) @ $${formatPrice(round.price)} · horizon ${s.horizonSec}s · AAPL → 400 unpaid`;
   });
 
   await check("credit is private: unsigned or stranger-signed credit reads are refused; the owner's are accepted", async () => {
