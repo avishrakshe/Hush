@@ -97,6 +97,7 @@ packages/mcp           @hush/mcp: MCP stdio server exposing Hush tools
 apps/facilitator       Express + SQLite (Drizzle). Top-ups, credit, receipts, vouchers, refunds, Merkle batches, SSE
 apps/provider-demo     GET /api/feed (AVAX price + synthetic signal); exact / hush-direct / hush-credit
 apps/agent             Atlas (public) + Veil (hush-credit) agents using Claude (`claude-sonnet-5`)
+apps/price-bot         v2: synthetic mock-stock prices → MockStockOracle every 60 s (viem only, @hush/config/base)
 apps/web               Next.js 16 + R3F + wagmi 2 + viem 2: 3D landing, /demo, consoles, /docs
 ```
 
@@ -148,6 +149,10 @@ Pages: `/` 4-chapter R3F scroll scene (THE LEAK → THE VEIL → HOW IT WORKS �
 `pnpm node` (terminal 1) → `pnpm fund:local && pnpm deploy:local && pnpm bootstrap:local` →
 `pnpm facilitator:local` → `pnpm provider:local` (waits for the facilitator) → `pnpm e2e:local`.
 Stop services by port (4022 facilitator, 4021 provider), never by command-line pattern.
+**A fresh `pnpm node` needs a fresh facilitator DB**: `apps/facilitator/.data/hush-localhost.db` outlives the chain, and
+its stale credit/batch rows break e2e (UNIQUE batch_id, phantom credit, `credit_expired`). Point `FACILITATOR_DB` at a
+new file (or move the old one away). `--with-expiry` needs `CREDIT_TTL_SECONDS=240 EXPIRY_INTERVAL_SECONDS=5`.
+After pulling v2: `pnpm keys` adds the new role keys (existing keys are never overwritten).
 - P4 agents (Atlas/Veil) on Fuji, owner treasury, MCP server + Claude Desktop config.
 - P5 web landing 3D scene ✅ (2026-09-30): `pnpm web` → http://localhost:3000. Next 16.3.6 pinned (16.3.7 was inside
   pnpm's release-age gate). **apps/web builds with webpack (`--webpack`)**: the SDK's NodeNext `./x.js` specifiers need
@@ -166,5 +171,17 @@ voucher whose requestHash is the quote digest) → custodied positions (signed s
 Proof of Alpha (`HushAlpha.sol` chain heads, commit the just-closed epoch) + Mirror copycat demo. HushLedger/HushRegistry
 stay unchanged. Commit + push after each phase.
 - V0 audit & plan ✅ (2026-10-03)
-- V1 mock stocks, oracle, price-bot, `/api/signal` · V2 HushAlpha + desk (buy, settle-out; then sell) · V3 agents trade +
-  Mirror · V4 Proof of Alpha · V5 MCP + telemetry + auditor CSV · V6 web panels · V7 docs, e2e, demo script
+- V1 ✅ (2026-10-03):
+  - `MockStock` (mNVDA/mTSLA/mSPY, 18 dp, 10-share lifetime faucet per address, owner mint) and `MockStockOracle`
+    (`postPrices` batch per tick, rounds stamped with `block.timestamp` — never caller time — `getPriceAt` binary search).
+  - `deploy-stocks.ts` adds the stocks to a live deployment; fresh deploys include them.
+  - Bootstrap step 7: PRICEBOT updater, desk eERC key + HushRegistry listing (pricePerCall 0), and desk inventory
+    (500 plain + 100 deposited per ticker; tokenIds hUSDC 1, hNVDA 2, hTSLA 3, hSPY 4 in deposit order).
+  - `apps/price-bot`: OU walk + momentum φ = 0.25, seed offset by on-chain round count.
+  - `GET /api/signal?ticker=` ($0.02; ticker checked before the paywall; `issuedAt ≥ latest round`; horizon 1200 s on
+    Fuji, 120 s locally).
+  - `EercAccount` methods take an optional `token`.
+  - New roles: DESK, ALPHAKING, MIRROR, PRICEBOT.
+  - `@hush/config/base` is the viem-only entry (~100 MB vs ~220 MB RSS).
+- Next: V2 HushAlpha + desk (buy, settle-out; then sell) · V3 agents trade + Mirror · V4 Proof of Alpha · V5 MCP +
+  telemetry + auditor CSV · V6 web panels · V7 docs, e2e, demo script
