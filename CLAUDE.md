@@ -157,9 +157,10 @@ Pages: `/` 4-chapter R3F scroll scene (THE LEAK → THE VEIL → HOW IT WORKS �
 `pnpm node` (terminal 1) → `pnpm fund:local && pnpm deploy:local && pnpm bootstrap:local` →
 `pnpm facilitator:local` → `pnpm provider:local` (waits for the facilitator) → `pnpm e2e:local`.
 Stop services by port (4022 facilitator, 4021 provider), never by command-line pattern.
-**A fresh `pnpm node` needs a fresh facilitator DB**: `apps/facilitator/.data/hush-localhost.db` outlives the chain, and
-its stale credit/batch rows break e2e (UNIQUE batch_id, phantom credit, `credit_expired`). Point `FACILITATOR_DB` at a
-new file (or move the old one away). `--with-expiry` needs `CREDIT_TTL_SECONDS=240 EXPIRY_INTERVAL_SECONDS=5`.
+Local state files are per chain: `stateTag()` (config) suffixes facilitator/desk DBs and agent/MCP ledgers with the
+genesis hash, so a fresh `pnpm node` starts clean (old `*-localhost.db` files from before V3 can be deleted). The node
+allows same-second blocks (`allowBlocksWithSameTimestamp`) so its clock can't run ahead of EIP-3009 validity windows.
+`--with-expiry` needs `CREDIT_TTL_SECONDS=240 EXPIRY_INTERVAL_SECONDS=5`.
 After pulling v2: `pnpm keys` adds the new role keys (existing keys are never overwritten).
 v2 extras: `pnpm price-bot:local` (PRICE_INTERVAL_SECONDS=10 for tests) · `pnpm desk:local` (own DB: `DESK_DB`) ·
 `pnpm desk-e2e:local` (needs price-bot + desk). The desk refuses quotes when the oracle is >600 s old.
