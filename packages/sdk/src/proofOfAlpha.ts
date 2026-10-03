@@ -11,6 +11,12 @@
  * checks it against the committed one. Adding, dropping, back-dating or editing a record changes a head, and the first
  * epoch where that happens is where verification fails. Signals are then graded against MockStockOracle.getPriceAt.
  *
+ * Grading starts at the commit deadline, not at issuedAt. A record filed under epoch e is only provably fixed once its
+ * head is on-chain — at the latest by the end of epoch e+1 — so until then its author could still have written it with
+ * hindsight (stamped early in the epoch, after seeing the moves since). A call therefore counts only for the move from
+ * (bindingEpoch + 2)·epochLen to issuedAt + horizonSec; providers use horizons of at least 3 epochs so that window is
+ * never empty. Calls whose window is empty (bound too late, or never) are "unbound" and not graded.
+ *
  * viem only (no eERC SDK): runs in Node and in the browser.
  */
 import { type Address, type Hex, type PublicClient, type TypedDataDomain, encodeAbiParameters, isAddressEqual, keccak256, parseAbiParameters, zeroHash } from "viem";
@@ -163,10 +169,15 @@ export interface GradedCall {
   confidence: number;
   issuedAt: number;
   horizonSec: number;
-  /** USDC atomic per share. */
+  /** Price the call quoted (oracle price at issuedAt), USDC atomic per share. */
   entry: string;
+  /** When grading starts: the commit deadline of the epoch that bound the call (null if never bound). */
+  fixedAt: number | null;
+  /** Oracle price at fixedAt — the graded move starts here. */
+  gradedFrom: string | null;
   exit: string | null;
-  /** Return of following the call, basis points (signed: a DOWN call wins when the price falls). */
+  /** Return of following the call from fixedAt to issuedAt + horizonSec, basis points (a DOWN call wins when the price
+   * falls). */
   returnBps: number | null;
   outcome: "win" | "loss" | "flat" | "pending" | "unbound";
 }
@@ -326,12 +337,8 @@ export async function verifyProof(proof: AlphaProof, opts: VerifyOptions): Promi
   if (proof.kind === "signal") {
     if (!opts.oracle) return fail(from, "an oracle address is needed to grade signals");
     const graded = await mapLimit(bound, limit, async ({ epoch, leaf, bindingEpoch }) => {
-      const g = await gradeSignal(leaf.record as SignalRecordJson, { publicClient: pc, oracle: opts.oracle!, now, epoch });
-      if (g === "price-mismatch") return { failed: true as const, epoch };
-      // Bound too late to count: its head was committed after the outcome could be known (upper bound: end of the
-      // epoch after the binding epoch). With a commit every epoch and horizon >= 2 epochs this never triggers.
-      if (Number((bindingEpoch + 2n) * BigInt(L)) > g.issuedAt + g.horizonSec) return { ...g, exit: null, returnBps: null, outcome: "unbound" as const };
-      return g;
+      const g = await gradeSignal(leaf.record as SignalRecordJson, { publicClient: pc, oracle: opts.oracle!, now, epoch, fixedAt: commitDeadline(bindingEpoch, L) });
+      return g === "price-mismatch" ? { failed: true as const, epoch } : g;
     });
     const priceFail = graded.find((x): x is { failed: true; epoch: bigint } => "failed" in x);
     if (priceFail) return fail(priceFail.epoch, "a signal's entry price is not the oracle's price at issuedAt (tampered)");
@@ -341,14 +348,18 @@ export async function verifyProof(proof: AlphaProof, opts: VerifyOptions): Promi
   return { ...report, valid: true };
 }
 
+/** Latest time the head of `bindingEpoch` can be on-chain (HushAlpha accepts it only during the next epoch). */
+export const commitDeadline = (bindingEpoch: bigint, epochLen: number) => Number((bindingEpoch + 2n) * BigInt(epochLen));
+
 /**
  * Grades one signal against the oracle: its entry price must be the price in force at issuedAt (or the round just
- * before, if one landed while it was being published); UP/DOWN calls resolve at issuedAt + horizonSec.
+ * before, if one landed while it was being published). UP/DOWN calls are graded on the move from `fixedAt` (the commit
+ * deadline of the epoch that bound it; default issuedAt) to issuedAt + horizonSec; an empty window is "unbound".
  * No chain checks — `verifyProof` does those; a provider uses this to compute the stats it claims.
  */
 export async function gradeSignal(
   record: SignalRecordJson,
-  opts: { publicClient: Pick<PublicClient, "readContract">; oracle: Address; now?: number; epoch?: bigint },
+  opts: { publicClient: Pick<PublicClient, "readContract">; oracle: Address; now?: number; epoch?: bigint; fixedAt?: number | null },
 ): Promise<GradedCall | "price-mismatch"> {
   const pc = opts.publicClient;
   const now = opts.now ?? Math.floor(Date.now() / 1000);
@@ -362,15 +373,15 @@ export async function gradeSignal(
     issuedAt: Number(r.issuedAt),
     horizonSec: Number(r.horizonSec),
     entry: r.price.toString(),
+    fixedAt: opts.fixedAt === null ? null : Math.max(Number(r.issuedAt), opts.fixedAt ?? 0),
+    gradedFrom: null,
     exit: null,
     returnBps: null,
     outcome: "pending",
   };
-  const [price, , roundId] = (await pc.readContract({ address: opts.oracle, abi: mockStockOracleAbi, functionName: "getPriceAt", args: [r.ticker, r.issuedAt] })) as [
-    bigint,
-    bigint,
-    bigint,
-  ];
+  const priceAt = async (t: bigint) =>
+    (await pc.readContract({ address: opts.oracle, abi: mockStockOracleAbi, functionName: "getPriceAt", args: [r.ticker, t] })) as [bigint, bigint, bigint];
+  const [price, , roundId] = await priceAt(r.issuedAt);
   if (price !== r.price) {
     const prev =
       roundId > 0n
@@ -380,11 +391,12 @@ export async function gradeSignal(
   }
   if (direction === "FLAT") return { ...g, outcome: "flat" };
   const resolveAt = r.issuedAt + r.horizonSec;
+  if (g.fixedAt === null || g.fixedAt >= Number(resolveAt)) return { ...g, outcome: "unbound" };
   if (Number(resolveAt) > now) return g;
-  const [exit] = (await pc.readContract({ address: opts.oracle, abi: mockStockOracleAbi, functionName: "getPriceAt", args: [r.ticker, resolveAt] })) as [bigint, bigint, bigint];
-  const move = Number(exit - r.price) / Number(r.price);
+  const [[from], [exit]] = await Promise.all([priceAt(BigInt(g.fixedAt)), priceAt(resolveAt)]);
+  const move = Number(exit - from) / Number(from);
   const returnBps = Math.round((direction === "UP" ? move : -move) * 10_000);
-  return { ...g, exit: exit.toString(), returnBps, outcome: returnBps > 0 ? "win" : "loss" };
+  return { ...g, gradedFrom: from.toString(), exit: exit.toString(), returnBps, outcome: returnBps > 0 ? "win" : "loss" };
 }
 
 /** Win rate, cumulative return and max drawdown (basis points) over graded calls, in time order. */

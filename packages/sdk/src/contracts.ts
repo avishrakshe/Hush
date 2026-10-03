@@ -28,6 +28,7 @@ export {
   leafTime,
   nextHead,
   verifyProof,
+  commitDeadline,
   gradeSignal,
   summarize,
   checkProvider,

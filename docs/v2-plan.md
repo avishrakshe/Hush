@@ -1,8 +1,10 @@
 # Hush v2 — V0 audit & plan (2026-10-03)
 
-> **Status:** V0 ✅ · V1 ✅ · V2 ✅ (desk e2e 14/14 locally and on Fuji). Built as planned. Differences from the original
-> prompt: sells use `GET /quote` + `POST /sell` (D4); `POST /settle-out` replaces `/settle` (D5); position reads
-> (`GET /positions/:agent`) reuse the signed credit-query header. Current state: see CLAUDE.md, v2 track.
+> **Status:** V0 ✅ · V1 ✅ · V2 ✅ (desk e2e 14/14 locally and on Fuji) · V3 ✅ · V4 ✅ (alpha e2e 9/9 locally).
+> Built as planned. Differences from the original prompt: sells use `GET /quote` + `POST /sell` (D4);
+> `POST /settle-out` replaces `/settle` (D5); position reads (`GET /positions/:agent`) reuse the signed credit-query
+> header; V4 adds a `COMMITTER` role for chain-head commits. Veil's own trading proof (fill chain) is still open.
+> Current state: see CLAUDE.md, v2 track.
 
 v2 thesis: an agent's strategy leaks through **what it learns** (data), **what it does** (trades) and **what it holds**
 (positions). Hush closes all three with x402 + eERC, then lets the agent **prove** its record without publishing it.
@@ -73,7 +75,7 @@ pass locally. New roles need a little AVAX from the deployer.
 | D5 | `POST /settle` → **`POST /settle-out`** (agent-signed `SettleOutRequest`). Queued and executed at the batch tick, one private hStock transfer each (desk account serialized; sweep per token before 300). | `/settle` is the x402 facilitator route in the same process. Batching blurs timing. |
 | D6 | Sizes and positions are **integer centishares** (0.01 share = 1 eERC unit). Prices are USDC atomic per share; `notional = size × price / 100`. | Settle-out is always exact; no dust. |
 | D7 | `commitChainHead` accepts only **the epoch that just closed** (`epoch + 1 == block.timestamp / epochLen`), instead of "== current epoch". | With "current", a leaf issued after that epoch's commit can't be in its head. Committing the closed epoch still makes back-dating impossible (≤ 1 epoch late). |
-| D8 | `epochLen` is a constructor immutable: 600 s on Fuji, 60 s locally. Rule: **`horizonSec ≥ 2 × epochLen`**. The verifier reports uncommitted epochs (gaps) and discards signals whose binding commit landed after `issuedAt + horizonSec`. | Otherwise a provider could pick winners after the outcome is known. A 60 s local epoch makes AlphaKing's divergence demoable in minutes. |
+| D8 | `epochLen` is a constructor immutable: 600 s on Fuji, 60 s locally. ~~`horizonSec ≥ 2 × epochLen`~~ → V4: **calls are graded from their commit deadline `(bindingEpoch+2)·epochLen`** to `issuedAt + horizonSec`, and **`horizonSec ≥ 3 × epochLen`**. The verifier reports uncommitted epochs (gaps); calls with an empty window are unbound. | Otherwise a provider could pick winners after the outcome is known — or, within an epoch, back-date a call it wrote with hindsight. A 60 s local epoch makes AlphaKing's divergence demoable in minutes. |
 | D9 | 402 metadata advertises **claimed** stats + `proofUrl`. "Verified" is only what the client computes. Customers keep every signed SignalRecord, so an omitted one is portable evidence for `flagProvider`. | A provider-advertised "verified" number is still just a claim. |
 | D10 | AlphaKing = a second provider-demo instance (role `ALPHAKING`) in the **same process** as SignalCo, offering `exact` only. Veil verifies before choosing a provider (so it never pays); Atlas buys on the claim. | Avoids a third facilitator; keeps the contrast. |
 | D11 | Oracle: `postPrices(bytes32[] tickers, uint256[] prices)` = 1 tx/min for all tickers; `getPriceAt` binary-searches rounds. MockStock: per-address **lifetime** faucet cap + owner `mint` for desk inventory. | Fewer txs; the desk needs inventory above the cap. |

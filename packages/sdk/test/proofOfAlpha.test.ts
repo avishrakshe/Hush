@@ -69,7 +69,7 @@ async function signal(issuedAt: number, direction: keyof typeof DIRECTION, opts:
     confidenceBps: 6_500,
     price: opts.price ?? priceAt(issuedAt).price,
     issuedAt: BigInt(issuedAt),
-    horizonSec: BigInt(opts.horizonSec ?? 2 * L),
+    horizonSec: BigInt(opts.horizonSec ?? 3 * L),
   };
   return { record: signalToJson(record), signature: await signalTyped.sign(opts.signer ?? provider, domain, record) };
 }
@@ -104,6 +104,24 @@ describe("Proof of Alpha", () => {
     expect(r.graded.map((g) => g.outcome)).toEqual(["win", "win", "loss", "win"]);
     expect(r.winRate).toBe(0.75);
     expect(r.maxDrawdownBps).toBeGreaterThan(0);
+    // Each graded move starts at the commit deadline of the call's epoch (end of the next epoch), not at issuedAt.
+    expect(r.graded[0]).toMatchObject({ fixedAt: t0 + 2 * L, gradedFrom: priceAt(t0 + 2 * L).price.toString() });
+  });
+
+  it("hindsight inside an epoch earns nothing: a back-dated call is graded from its commit deadline", async () => {
+    // At t0+5L+55 a cheater has seen the fall since t0+5L and files a DOWN call stamped at t0+5L (same epoch, G+5).
+    const cheat = newChain();
+    cheat.add(await signal(t0 + 5 * L, "DOWN"));
+    const heads = commitAll(cheat, LAST);
+    const r = await verifyProof(cheat.proof(G, LAST), { publicClient: fakeChain(heads), oracle: ORACLE, now });
+    const g = r.graded[0]!;
+    const fixedAt = t0 + 7 * L;
+    expect(g).toMatchObject({ outcome: "win", fixedAt, gradedFrom: priceAt(fixedAt).price.toString() });
+    // Graded from issuedAt it would have banked the move it already saw; from the deadline only what came after.
+    const exit = Number(priceAt(t0 + 8 * L).price);
+    const fromIssued = Math.round(((Number(priceAt(t0 + 5 * L).price) - exit) / Number(priceAt(t0 + 5 * L).price)) * 10_000);
+    expect(g.returnBps).toBeLessThan(fromIssued);
+    expect(g.returnBps).toBe(Math.round(((Number(priceAt(fixedAt).price) - exit) / Number(priceAt(fixedAt).price)) * 10_000));
   });
 
   it("dropping a losing call breaks the chain exactly at that epoch", async () => {

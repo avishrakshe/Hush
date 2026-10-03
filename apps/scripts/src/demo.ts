@@ -1,7 +1,8 @@
 /**
  * One command for the live demo stack (Fuji unless --local):
  *
- *   price-bot → facilitator :4022 → provider :4021 → desk :4023 → operator :4040 → Mirror :4033 → Atlas :4031 + Veil :4032
+ *   price-bot → facilitator :4022 → provider :4021 (+ AlphaKing :4025) → desk :4023 → operator :4040 → Mirror :4033
+ *   → Atlas :4031 + Veil :4032
  *
  * Then `pnpm web` and open http://localhost:3000/demo. Ctrl+C stops everything (whole process trees).
  *

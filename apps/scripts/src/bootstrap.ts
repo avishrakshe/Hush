@@ -8,6 +8,8 @@
  *   6. owner deposits into eERC and privately allocates hUSDC to Veil (treasury → agent, amount hidden)
  *   7. v2 stocks (when deployed): PRICEBOT oracle updater · desk eERC key + HushRegistry listing · desk inventory
  *      (plain mStock for the public path; part deposited into eERC, which registers each stock's tokenId)
+ *   8. v2 Proof of Alpha (when HushAlpha is deployed): AlphaKing listed in HushRegistry; SignalCo (PROVIDER) and
+ *      AlphaKing authorise COMMITTER to commit their chain heads
  *
  * Usage: pnpm bootstrap        (Fuji)   ·   pnpm bootstrap:local   (hardhat node)
  */
@@ -17,6 +19,7 @@ import {
   encryptedErcAbi,
   eercToAtomic,
   formatHusdc,
+  hushAlphaAbi,
   hushRegistryAbi,
   mockStockAbi,
   mockStockOracleAbi,
@@ -29,12 +32,13 @@ import {
 import { type Address, formatUnits, isAddressEqual, parseUnits } from "viem";
 
 const contracts = loadContracts();
-const [deployer, auditor, owner, atlas, veil, provider, facilitator, desk, pricebot, mirror] = (
-  ["DEPLOYER", "AUDITOR", "OWNER", "ATLAS", "VEIL", "PROVIDER", "FACILITATOR", "DESK", "PRICEBOT", "MIRROR"] as const
+const [deployer, auditor, owner, atlas, veil, provider, facilitator, desk, pricebot, mirror, alphaking, committer] = (
+  ["DEPLOYER", "AUDITOR", "OWNER", "ATLAS", "VEIL", "PROVIDER", "FACILITATOR", "DESK", "PRICEBOT", "MIRROR", "ALPHAKING", "COMMITTER"] as const
 ).map((r) => wallet(r));
 
 const PROVIDER_ENDPOINT = process.env.PROVIDER_URL || "http://localhost:4021";
 const DESK_ENDPOINT = process.env.DESK_URL || "http://localhost:4023";
+const ALPHAKING_ENDPOINT = process.env.ALPHAKING_URL || "http://localhost:4025";
 const DESK_PUBLIC_INVENTORY = parseUnits("500", 18); //  plain mStock per ticker, delivered publicly to `exact` buyers
 const DESK_PRIVATE_INVENTORY = parseUnits("100", 18); // per ticker into eERC (hStock), for private settle-outs
 // v2 raised these so both agents can trade a few lots (~$9 each) at the desk, not just buy $0.02 data calls.
@@ -143,6 +147,7 @@ async function main() {
 
   if (contracts.stockOracle && contracts.stocks) await bootstrapStocks(contracts.stockOracle, contracts.stocks);
   else console.log("\n(no mock stocks in this deployment — skipping v2 setup; `pnpm deploy:stocks:fuji` adds them)");
+  if (contracts.hushAlpha) await bootstrapAlpha(contracts.hushAlpha);
 
   console.log("\nBootstrap complete. Next: start the facilitator and the provider, then run the e2e check.");
 }
@@ -201,6 +206,36 @@ async function bootstrapStocks(oracle: Address, stocks: NonNullable<typeof contr
     const tokenId = await publicClient.readContract({ address: contracts.encryptedErc, abi: encryptedErcAbi, functionName: "tokenIds", args: [token] });
     const held = (await deskEerc.balance(desk!.address, token)).decrypted;
     ok(`h${ticker}: eERC tokenId ${tokenId} · desk holds ${formatUnits(held, contracts.eercDecimals)} private shares`);
+  }
+}
+
+async function bootstrapAlpha(hushAlpha: Address) {
+  step(8, "v2 Proof of Alpha: AlphaKing listing, chain-head committer");
+  // AlphaKing only takes public `exact` payments, but a HushRegistry listing needs an eERC key — and agents only pay
+  // listed providers. Being listed says nothing about honesty; its proof does.
+  const kingEerc = alphaking!.eerc(contracts);
+  const regHash = await kingEerc.register();
+  ok(`ALPHAKING eERC key ${regHash ? `registered  ${txLink(regHash)}` : "already registered"}`);
+  const isProvider = await publicClient.readContract({ address: contracts.hushRegistry, abi: hushRegistryAbi, functionName: "isProvider", args: [alphaking!.address] });
+  if (!isProvider) {
+    const hash = await registerProvider(alphaking!.walletClient, publicClient, {
+      registry: contracts.hushRegistry,
+      name: "AlphaKing Signals",
+      endpoint: `${ALPHAKING_ENDPOINT}/api/signal`,
+      pricePerCall: 20_000n,
+      eercPublicKey: (await kingEerc.init()).publicKey,
+    });
+    ok(`registered AlphaKing ${alphaking!.address}  ${txLink(hash)}`);
+  } else ok(`AlphaKing ${alphaking!.address} already registered`);
+
+  for (const subject of [provider!, alphaking!]) {
+    const current = (await publicClient.readContract({ address: hushAlpha, abi: hushAlphaAbi, functionName: "committerOf", args: [subject.address] })) as Address;
+    if (isAddressEqual(current, committer!.address)) {
+      ok(`${subject.role} chain heads already committed by COMMITTER ${committer!.address}`);
+      continue;
+    }
+    const hash = await subject.walletClient.writeContract({ address: hushAlpha, abi: hushAlphaAbi, functionName: "setCommitter", args: [committer!.address] });
+    await waitOk(hash, `${subject.role} → committer ${committer!.address}`);
   }
 }
 

@@ -1,4 +1,4 @@
-import { HTTPFacilitatorClient } from "@x402/core/server";
+import { HTTPFacilitatorClient, type UnpaidResponseBody } from "@x402/core/server";
 import type { Network, Price } from "@x402/core/types";
 import { convertToTokenAmount } from "@x402/core/utils";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
@@ -16,6 +16,8 @@ export interface HushRoute {
   price: Price;
   description?: string;
   mimeType?: string;
+  /** Body of the 402 (x402's `unpaidResponseBody`), e.g. a signal provider's claimed track record + proof URL. */
+  unpaidResponseBody?: UnpaidResponseBody;
 }
 
 export interface HushMiddlewareOptions {
@@ -77,6 +79,7 @@ export function hushMiddleware(opts: HushMiddlewareOptions): RequestHandler {
         accepts: schemes.map((scheme) => ({ scheme, price: cfg.price, network, payTo: opts.payTo })),
         description: cfg.description,
         mimeType: cfg.mimeType ?? "application/json",
+        ...(cfg.unpaidResponseBody && { unpaidResponseBody: cfg.unpaidResponseBody }),
       },
     ]),
   );

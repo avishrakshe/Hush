@@ -96,6 +96,7 @@ packages/sdk           @hush/x402: x402 v2 mechanisms (hush-direct, hush-credit)
 packages/mcp           @hush/mcp: MCP stdio server exposing Hush tools
 apps/facilitator       Express + SQLite (Drizzle). Top-ups, credit, receipts, vouchers, refunds, Merkle batches, SSE
 apps/provider-demo     GET /api/feed (AVAX price + synthetic signal); exact / hush-direct / hush-credit
+                       v2: SignalCo /api/signal + /proof-of-alpha; AlphaKing (:4025, exact only) in the same process
 apps/agent             Atlas (public) + Veil (hush-credit) agents using Claude (`claude-sonnet-5`)
 apps/price-bot         v2: synthetic mock-stock prices → MockStockOracle every 60 s (viem only, @hush/config/base)
 apps/desk              v2: Hush Desk (:4023) — hush-rfq + exact quotes, custody, sells, settle-outs; in-process facilitator
@@ -164,6 +165,7 @@ allows same-second blocks (`allowBlocksWithSameTimestamp`) so its clock can't ru
 After pulling v2: `pnpm keys` adds the new role keys (existing keys are never overwritten).
 v2 extras: `pnpm price-bot:local` (PRICE_INTERVAL_SECONDS=10 for tests) · `pnpm desk:local` (own DB: `DESK_DB`) ·
 `pnpm desk-e2e:local` (needs price-bot + desk). The desk refuses quotes when the oracle is >600 s old.
+V4: provider + price-bot running → `pnpm alpha-e2e:local` (needs COMMITTER: `pnpm keys`, `fund:local`, bootstrap).
 V3: `pnpm mirror:local` → `pnpm mirror-e2e:local`; agents trade with `AGENT_BRAIN=rules pnpm atlas:local -- --ticks N`
 (RULES_MIN_CONFIDENCE=0 / RULES_MAX_AGE_SECONDS=1 make them act every tick). `pnpm demo` now also starts desk + Mirror.
 - P4 agents (Atlas/Veil) on Fuji, owner treasury, MCP server + Claude Desktop config.
@@ -191,8 +193,8 @@ stay unchanged. Commit + push after each phase.
   - Bootstrap step 7: PRICEBOT updater, desk eERC key + HushRegistry listing (pricePerCall 0), and desk inventory
     (500 plain + 100 deposited per ticker; tokenIds hUSDC 1, hNVDA 2, hTSLA 3, hSPY 4 in deposit order).
   - `apps/price-bot`: OU walk + momentum φ = 0.25, seed offset by on-chain round count.
-  - `GET /api/signal?ticker=` ($0.02; ticker checked before the paywall; `issuedAt ≥ latest round`; horizon 1200 s on
-    Fuji, 120 s locally).
+  - `GET /api/signal?ticker=` ($0.02; ticker checked before the paywall). V4 changed it to the latest signed call;
+    horizon 1800 s on Fuji, 180 s locally (3 epochs).
   - `EercAccount` methods take an optional `token`.
   - New roles: DESK, ALPHAKING, MIRROR, PRICEBOT.
   - `@hush/config/base` is the viem-only entry (~100 MB vs ~220 MB RSS).
@@ -230,4 +232,36 @@ stay unchanged. Commit + push after each phase.
     target P&L vs copy P&L, and what it can see. Veil shows up as encrypted hUSDC transfers or not at all.
   - **Chain clock drift:** a local hardhat chain runs ahead of wall time under bursts of txs. The desk's public-sell
     expiry check corrects for it; Mirror measures lag block-to-block.
-- Next: V4 Proof of Alpha · V5 MCP + telemetry + auditor CSV · V6 web panels · V7 docs, e2e, demo script
+- V4 ✅ (2026-10-04) — Proof of Alpha for signal providers. Locally `pnpm alpha-e2e:local` 9/9 (~6 min: calls must
+  resolve) and `e2e:local --with-expiry` 16/16. Fuji: bootstrap step 8 done (AlphaKing listed, COMMITTER authorised);
+  `pnpm alpha-e2e` there needs the provider up ~1 h first (600 s epochs, 1800 s horizon).
+  - **SDK `proofOfAlpha.ts`** (viem only, also in `@hush/x402/contracts`): `AlphaChain` (leafHash = EIP-712 digest;
+    epochDigest = `keccak(abi.encode(e, leafHashes))` or a HEARTBEAT digest for empty epochs; head_e = `keccak(head_{e-1},
+    digest_e)`), `verifyProof` (anchor, signer, epoch filing, recomputed heads vs `getChainHead`, oracle entry price,
+    gaps), `gradeSignal`/`summarize`, `checkProvider`/`chooseProvider` (verify each provider's proof, then policy
+    `minWinRate`/`minCalls`; claims ignored). 10 unit tests (omission, back-date, misfiled, forged sig, made-up price,
+    stale window/anchor, gaps, empty chain, within-epoch hindsight).
+  - **Grading starts at the commit deadline** `(bindingEpoch + 2)·epochLen`, not at issuedAt: until its head is on-chain
+    a record could still have been written with hindsight (stamped early in its epoch). Calls count for the move from
+    there to `issuedAt + horizonSec`; an empty window = "unbound". Hence horizon ≥ 3 epochs (provider enforces it).
+  - **Providers** (`apps/provider-demo/src/signals.ts` `SignalBook`): one signed call per ticker every
+    `SIGNAL_INTERVAL_SECONDS` (20 s local / 300 s Fuji) whether or not anyone buys; append-only JSONL log in `.data`
+    (stateTag'd); `/api/signal` = latest signed call (legacy fields + `record`, `signature`, `epoch`). Calls are stamped
+    5 s in the past and quote the round in force then (local blocks run ~2 s behind wall time, so "now" quoted one
+    round stale). `GET /proof-of-alpha?from&to` (epochs) only reveals resolved, committed epochs (`to` capped; default
+    window `PROOF_WINDOW_EPOCHS` 30 local / 36 Fuji). Claims (`GET /` and the 402 body via
+    `HushRoute.unpaidResponseBody`) use the verifier's rules over what the provider reveals (binding read on-chain).
+  - **COMMITTER** role commits both providers' heads (`setCommitter` in bootstrap step 8), one at a time
+    (`COMMIT_DELAY_SECONDS` 8 local / 10 Fuji after each boundary, > the 5 s stamp lag; hardhat rejects out-of-order
+    nonces). The provider refuses to start without it. A missed epoch is a gap; a fresh book re-anchors genesis to its
+    first commit.
+  - **SignalCo strategy**: last-return momentum + reversion to the 60-round mean (fitted to the price-bot walk;
+    simulated ~54–55% graded from the deadline, ~57% from issuedAt; the old EMA crossover scored ~49%). Small samples
+    swing (35% over 17 → 56% over 34 in one run). **AlphaKing**: coin flips at 85–95% confidence; its proof hides ~90%
+    of resolved losers → claims ~90%, verification fails at the first doctored committed epoch.
+  - **Agents** (`trader.ts`): provider choice before buying (`AGENT_SIGNAL_PROVIDERS`, recheck 600 s, telemetry
+    `provider-check`). Veil (`verify`) runs `chooseProvider` (`AGENT_MIN_WIN_RATE` 0.4, `AGENT_MIN_CALLS` 10); if
+    nobody passes yet it keeps the first listed provider whose proof doesn't fail. Atlas (`claims`) takes the best
+    advertised win rate → AlphaKing. Bought calls are signature-checked and kept in telemetry as evidence.
+  - Bootstrap step 8: AlphaKing eERC key + HushRegistry listing ("AlphaKing Signals", exact-only at runtime).
+- Next: V5 MCP + telemetry + auditor CSV · V6 web panels · V7 docs, e2e, demo script

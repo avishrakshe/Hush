@@ -46,6 +46,8 @@
     "desk-e2e:local": "pnpm --filter @hush/scripts desk-e2e:local",
     "mirror-e2e": "pnpm --filter @hush/scripts mirror-e2e",
     "mirror-e2e:local": "pnpm --filter @hush/scripts mirror-e2e:local",
+    "alpha-e2e": "pnpm --filter @hush/scripts alpha-e2e",
+    "alpha-e2e:local": "pnpm --filter @hush/scripts alpha-e2e:local",
     "atlas": "pnpm --filter @hush/agent atlas",
     "veil": "pnpm --filter @hush/agent veil",
     "atlas:local": "pnpm --filter @hush/agent atlas:local",

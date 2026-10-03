@@ -5,11 +5,28 @@
  *
  * env: AGENT_TICKER (NVDA) · AGENT_LOT_SHARES (0.05) · AGENT_MAX_POSITION_SHARES (0.50) · AGENT_MAX_TRADE_USD (25)
  *      AGENT_DAILY_TRADE_CAP_USD (200) · AGENT_BRAIN=claude|rules · RULES_MAX_AGE_SECONDS · RULES_MIN_CONFIDENCE
+ *      AGENT_SIGNAL_PROVIDERS (SignalCo,AlphaKing URLs) · AGENT_PROVIDER_CHOICE=verify|claims · AGENT_MIN_WIN_RATE (0.4)
+ *      AGENT_MIN_CALLS (10) · AGENT_PROVIDER_RECHECK_SECONDS (600)
+ *
+ * Choosing a signal provider (D10): Veil verifies each provider's Proof of Alpha against HushAlpha and the oracle before
+ * paying for a call (`verify`, the private default); Atlas goes by the win rate a provider advertises (`claims`).
  */
 import { URLS, publicClient, txLink } from "@hush/config";
-import { formatPrice, formatShares, isStockTicker, latestRound, parseShares } from "@hush/x402";
+import {
+  type AlphaClaims,
+  type SignalRecordJson,
+  alphaDomain,
+  chooseProvider,
+  formatPrice,
+  formatShares,
+  isStockTicker,
+  latestRound,
+  parseShares,
+  signalFromJson,
+  signalTyped,
+} from "@hush/x402";
 import { HushDeskClient, HushPublicDesk, spentToday } from "@hush/x402/client";
-import { formatUnits, parseUnits } from "viem";
+import { type Hex, formatUnits, isAddressEqual, parseUnits } from "viem";
 import type { AgentContext } from "./context.js";
 import { type SignalPurchase, type TradeDecision, type TradeOutcome, type TradeState, makeTraderBrain } from "./traderBrain.js";
 import { PrivateVenue, PublicVenue, type Venue } from "./venues.js";
@@ -21,8 +38,18 @@ export async function runTrader(ctx: AgentContext) {
   const { profile, contracts, me, telemetry, hush, store, policy, log } = ctx;
   const ticker = (process.env.AGENT_TICKER || "NVDA").toUpperCase();
   if (!isStockTicker(ticker) || !contracts.stocks?.[ticker] || !contracts.stockOracle) throw new Error(`no ${ticker} stock in this deployment`);
-  const signalUrl = `${URLS.provider}/api/signal?ticker=${ticker}`;
-  const lot = formatShares(parseShares(process.env.AGENT_LOT_SHARES || "0.05"));
+  const providers = (process.env.AGENT_SIGNAL_PROVIDERS || `${URLS.provider},${URLS.alphaking}`)
+    .split(",")
+    .map((u) => u.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  const chooseBy = process.env.AGENT_PROVIDER_CHOICE || (profile.mode === "public" ? "claims" : "verify");
+  if (chooseBy !== "verify" && chooseBy !== "claims") throw new Error("AGENT_PROVIDER_CHOICE must be verify or claims");
+  const alphaPolicy = { minWinRate: Number(process.env.AGENT_MIN_WIN_RATE || 0.4), minCalls: Number(process.env.AGENT_MIN_CALLS || 10) };
+  const recheckMs = Number(process.env.AGENT_PROVIDER_RECHECK_SECONDS || 600) * 1000;
+  let signalBase = providers[0]!;
+  let checkedAt = 0;
+  const signalUrl = () => `${signalBase}/api/signal?ticker=${ticker}`;
+  const lot =formatShares(parseShares(process.env.AGENT_LOT_SHARES || "0.05"));
   const maxPosition = parseShares(process.env.AGENT_MAX_POSITION_SHARES || "0.50");
   const maxTrade = usd(process.env.AGENT_MAX_TRADE_USD || "25");
   const dailyTradeCap = usd(process.env.AGENT_DAILY_TRADE_CAP_USD || "200");
@@ -42,16 +69,91 @@ export async function runTrader(ctx: AgentContext) {
 
   const mark = async () => (await latestRound(publicClient, contracts.stockOracle!, ticker)).price;
 
+  /** The signal's 402 tells us its live price (no payment needed to read it). */
+  async function readSignalPrice() {
+    try {
+      const header = (await fetch(signalUrl())).headers.get("PAYMENT-REQUIRED");
+      if (header) signalPrice = BigInt((JSON.parse(Buffer.from(header, "base64").toString()) as { accepts: { amount: string }[] }).accepts[0]!.amount);
+    } catch {
+      log(`signal provider ${signalBase} not reachable yet`);
+    }
+  }
+
+  /** Pick the signal provider (cached for AGENT_PROVIDER_RECHECK_SECONDS). */
+  async function selectProvider() {
+    if (providers.length < 2 || (checkedAt && Date.now() - checkedAt < recheckMs)) return;
+    checkedAt = Date.now();
+    const before = signalBase;
+    let report: Record<string, unknown>[];
+    if (chooseBy === "claims") {
+      const pages = await Promise.all(
+        providers.map(async (url) => {
+          try {
+            const page = (await (await fetch(`${url}/`)).json()) as { name?: string; proofOfAlpha?: { claims?: AlphaClaims } };
+            return { url, name: page.name ?? url, claimed: page.proofOfAlpha?.claims?.winRate ?? null, calls: page.proofOfAlpha?.claims?.calls ?? 0 };
+          } catch {
+            return { url, name: url, claimed: null, calls: 0 };
+          }
+        }),
+      );
+      const best = [...pages].sort((a, b) => (b.claimed ?? -1) - (a.claimed ?? -1))[0];
+      if (best && best.claimed !== null) signalBase = best.url;
+      report = pages;
+    } else {
+      const { chosen, checks } = await chooseProvider(providers, { publicClient: publicClient as never, oracle: contracts.stockOracle!, policy: alphaPolicy });
+      // Nobody passes yet (too few resolved calls): keep the first listed provider whose proof doesn't fail.
+      const fallback = checks.find((c) => !c.report || c.report.valid);
+      if (chosen) signalBase = chosen.url.replace(/\/$/, "");
+      else if (fallback) signalBase = fallback.url.replace(/\/$/, "");
+      report = checks.map((c) => ({
+        url: c.url,
+        name: c.name,
+        claimed: c.claims?.winRate ?? null,
+        verified: c.report?.valid ? c.report.winRate : null,
+        valid: c.report?.valid ?? null,
+        calls: c.report?.calls ?? 0,
+        failedEpoch: c.report?.failedEpoch ?? null,
+        passes: c.passes,
+        why: c.why,
+      }));
+    }
+    await telemetry.publish("provider-check", { by: chooseBy, chosen: signalBase, policy: chooseBy === "verify" ? alphaPolicy : null, providers: report });
+    for (const r of report) {
+      const pct = (x: unknown) => (typeof x === "number" ? `${Math.round(x * 100)}%` : "–");
+      log(`provider ${r.name}: claims ${pct(r.claimed)}${chooseBy === "verify" ? ` · verified ${pct(r.verified)} over ${r.calls} calls — ${r.why}` : ""}`);
+    }
+    log(`signal provider (${chooseBy}): ${signalBase}`);
+    if (signalBase !== before) await readSignalPrice();
+  }
+
   async function buySignal(): Promise<SignalPurchase> {
     const t0 = performance.now();
     try {
-      const res = await hush.fetch(signalUrl);
+      await selectProvider().catch((err: Error) => log(`provider check failed: ${err.message.split("\n")[0]}`));
+      const res = await hush.fetch(signalUrl());
       if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
-      const s = (await res.json()) as NonNullable<SignalPurchase["signal"]>;
+      const s = (await res.json()) as NonNullable<SignalPurchase["signal"]> & { provider?: Hex; record?: SignalRecordJson; signature?: Hex };
+      // A signed call is evidence: keep only calls that really are the provider's (an omitted one can later be shown).
+      if (s.record && s.signature && contracts.hushAlpha) {
+        const valid =
+          isAddressEqual(s.record.provider, s.provider ?? s.record.provider) &&
+          (await signalTyped.isValid(alphaDomain(contracts.chainId, contracts.hushAlpha), signalFromJson(s.record), s.signature));
+        if (!valid) return { ok: false, error: "the signal's signature is not the provider's" };
+      }
       lastSignal = { ...s, boughtAt: Date.now() };
       const ms = Math.round(performance.now() - t0);
-      await telemetry.publish("signal", { ticker, direction: s.direction, confidence: s.confidence, price: s.price, issuedAt: s.issuedAt, horizonSec: s.horizonSec, ms });
-      log(`signal ${ticker} ${s.direction} (${s.confidence}) @ $${s.price} in ${ms} ms`);
+      await telemetry.publish("signal", {
+        ticker,
+        provider: signalBase,
+        direction: s.direction,
+        confidence: s.confidence,
+        price: s.price,
+        issuedAt: s.issuedAt,
+        horizonSec: s.horizonSec,
+        ms,
+        ...(s.record && { record: s.record, signature: s.signature }),
+      });
+      log(`signal ${ticker} ${s.direction} (${s.confidence}) @ $${s.price} from ${signalBase} in ${ms} ms`);
       return { ok: true, signal: s };
     } catch (err) {
       const error = (err as Error).message.split("\n")[0]!;
@@ -151,14 +253,8 @@ export async function runTrader(ctx: AgentContext) {
     };
   }
 
-  // The signal's 402 tells us its live price (no payment needed to read it).
-  try {
-    const challenge = await fetch(signalUrl);
-    const header = challenge.headers.get("PAYMENT-REQUIRED");
-    if (header) signalPrice = BigInt((JSON.parse(Buffer.from(header, "base64").toString()) as { accepts: { amount: string }[] }).accepts[0]!.amount);
-  } catch {
-    log(`signal provider ${signalUrl} not reachable yet`);
-  }
+  await selectProvider().catch((err: Error) => log(`provider check failed: ${err.message.split("\n")[0]}`));
+  await readSignalPrice();
 
   const brain = makeTraderBrain(profile.name);
   log(profile.tagline);
