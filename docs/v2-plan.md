@@ -1,5 +1,9 @@
 # Hush v2 — V0 audit & plan (2026-10-03)
 
+> **Status:** V0 ✅ · V1 ✅ · V2 ✅ (desk e2e 14/14 locally and on Fuji). Built as planned. Differences from the original
+> prompt: sells use `GET /quote` + `POST /sell` (D4); `POST /settle-out` replaces `/settle` (D5); position reads
+> (`GET /positions/:agent`) reuse the signed credit-query header. Current state: see CLAUDE.md, v2 track.
+
 v2 thesis: an agent's strategy leaks through **what it learns** (data), **what it does** (trades) and **what it holds**
 (positions). Hush closes all three with x402 + eERC, then lets the agent **prove** its record without publishing it.
 Loops: LEARN → TRADE → HOLD → PROVE. Tagline: "Private by default. Provable on demand."

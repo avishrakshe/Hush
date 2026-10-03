@@ -98,6 +98,7 @@ apps/facilitator       Express + SQLite (Drizzle). Top-ups, credit, receipts, vo
 apps/provider-demo     GET /api/feed (AVAX price + synthetic signal); exact / hush-direct / hush-credit
 apps/agent             Atlas (public) + Veil (hush-credit) agents using Claude (`claude-sonnet-5`)
 apps/price-bot         v2: synthetic mock-stock prices → MockStockOracle every 60 s (viem only, @hush/config/base)
+apps/desk              v2: Hush Desk (:4023) — hush-rfq + exact quotes, custody, sells, settle-outs; in-process facilitator
 apps/web               Next.js 16 + R3F + wagmi 2 + viem 2: 3D landing, /demo, consoles, /docs
 ```
 
@@ -109,6 +110,10 @@ the agent prevents griefing freezes), `freezeAgent`/`unfreezeAgent` (owner kill 
 **HushLedger**: `commitBatch(provider, batchId, root)` — provider or its facilitator; batchIds strictly increasing;
 `verifyInclusion(provider, batchId, leaf, proof)`. No counts or amounts on-chain.
 Leaf = OZ StandardMerkleTree double hash: `keccak256(bytes.concat(keccak256(abi.encode(voucherFields, signature))))`.
+**HushAlpha** (v2, `epochLen` immutable: 600 s Fuji / 60 s local): EIP-712 domain `{name:"HushAlpha", version:"1"}` with
+hash + `isValid*Signature` views for Quote / FillReceipt / PositionStatement (signer = desk) and SignalRecord (signer =
+provider); `commitChainHead(subject, epoch, head)` only for the epoch that just closed, once, by subject or `committerOf`.
+**MockStock** (mNVDA/mTSLA/mSPY) + **MockStockOracle** (`postPrices`, `getPriceAt`) — see v2 track below.
 
 ## SDK essentials
 EIP-712 domain `{name:"Hush", version:"1", chainId, verifyingContract: HushLedger}`.
@@ -121,7 +126,9 @@ jittered top-up timing. Persist vouchers + receipts; `verifyMyVouchers()`; `requ
 ## Facilitator
 `POST /topup`, `POST /verify`, `POST /refund`, `GET /credit/:agent`, cron batch commit, `GET /proof/:leaf`,
 `SSE /events` (topups, receipts, calls, batches, refunds, freezes). Serialize provider eERC spends; sweep before the
-300-pending limit.
+300-pending limit. It is a library now (`createFacilitator({ role, committerRole, dbFile })` in `apps/facilitator/src/app.ts`);
+`src/index.ts` runs it for PROVIDER, apps/desk runs one in-process for DESK (committer = DESK; wallets use viem's
+nonceManager because one process sends commits, settlements and deliveries concurrently).
 
 ## Web (apps/web)
 Dark, dimensional, editorial. Tokens: `--bg #05060A`, glass surfaces, `--cyan #22E6FF`, `--violet #8B5CF6`,
@@ -153,6 +160,8 @@ Stop services by port (4022 facilitator, 4021 provider), never by command-line p
 its stale credit/batch rows break e2e (UNIQUE batch_id, phantom credit, `credit_expired`). Point `FACILITATOR_DB` at a
 new file (or move the old one away). `--with-expiry` needs `CREDIT_TTL_SECONDS=240 EXPIRY_INTERVAL_SECONDS=5`.
 After pulling v2: `pnpm keys` adds the new role keys (existing keys are never overwritten).
+v2 extras: `pnpm price-bot:local` (PRICE_INTERVAL_SECONDS=10 for tests) · `pnpm desk:local` (own DB: `DESK_DB`) ·
+`pnpm desk-e2e:local` (needs price-bot + desk). The desk refuses quotes when the oracle is >600 s old.
 - P4 agents (Atlas/Veil) on Fuji, owner treasury, MCP server + Claude Desktop config.
 - P5 web landing 3D scene ✅ (2026-09-30): `pnpm web` → http://localhost:3000. Next 16.3.6 pinned (16.3.7 was inside
   pnpm's release-age gate). **apps/web builds with webpack (`--webpack`)**: the SDK's NodeNext `./x.js` specifiers need
@@ -183,5 +192,24 @@ stay unchanged. Commit + push after each phase.
   - `EercAccount` methods take an optional `token`.
   - New roles: DESK, ALPHAKING, MIRROR, PRICEBOT.
   - `@hush/config/base` is the viem-only entry (~100 MB vs ~220 MB RSS).
-- Next: V2 HushAlpha + desk (buy, settle-out; then sell) · V3 agents trade + Mirror · V4 Proof of Alpha · V5 MCP +
-  telemetry + auditor CSV · V6 web panels · V7 docs, e2e, demo script
+- V2 ✅ (2026-10-03) — Hush Desk, `hush-rfq`. Fuji: HushAlpha `0xA45c0B7F393692DC7ad6c2dA287EA8415a779079`;
+  `pnpm desk-e2e` 14/14 there and locally.
+  - **Flow:** `GET /rfq?ticker&side=buy&size&agent` → 402 whose `accepts` (hush-rfq + exact) carry one desk-signed Quote
+    (DynamicPrice, memoized per request context). On the paid retry the echoed quote is re-checked and re-offered
+    unchanged; expired or used quotes get a fresh 402.
+  - **Payment:** a normal Hush voucher in the agent's desk credit stream with `requestHash = HushAlpha digest of the
+    Quote`, so it lands in the desk's HushLedger batches like any voucher. Settle books the position atomically (agent
+    lock → desk book lock) and returns the signed FillReceipt + PositionStatement in `SettleResponse.extra`
+    (`PAYMENT-RESPONSE`).
+  - **Sells:** `GET /quote?side=sell` + `POST /sell` with a zero-increment voucher as the order; proceeds go to
+    `credits.proceeds_total` (migration 0001).
+  - **Settle-outs:** `POST /settle-out` (agent- or owner-signed) is queued and run after the batch tick.
+  - **Reads:** `GET /positions/:agent` and `/settle-outs/:agent`, signed with the credit-query header.
+  - **Public `exact` path:** quote consumed in `onBeforeSettle`, plain mStock delivered in `onAfterSettle`.
+  - **Custody** stays ≤ the desk's encrypted inventory.
+  - **SDK:** `HushDeskService`/`MemoryDeskStore` (facilitator), `HushRfqServerScheme` + `echoedPayment` (server),
+    `HushRfqClient` + `HushDeskClient` (`buy/sell/positions/settleOut/verifyPositions`) + `TradePolicy` (client).
+    `createHushFetch` registers hush-rfq and the private selector prefers hush-credit, then hush-rfq.
+    `toX402Policy` ignores hush-rfq (TradePolicy governs trades).
+- Next: V3 agents trade + Mirror · V4 Proof of Alpha · V5 MCP + telemetry + auditor CSV · V6 web panels · V7 docs, e2e,
+  demo script
