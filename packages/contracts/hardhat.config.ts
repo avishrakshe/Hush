@@ -20,6 +20,12 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
+    // The in-process / `hardhat node` chain. By default every block must be stamped at least 1 s after the previous one,
+    // so a burst of transactions (bootstrap, agents, e2e) pushes chain time minutes ahead of the wall clock — and then
+    // EIP-3009 authorizations (valid ~60 s of wall time) look expired. Same-second blocks keep the clocks together.
+    hardhat: {
+      allowBlocksWithSameTimestamp: true,
+    },
     // `pnpm node` + `pnpm deploy:local`: offline dry runs with the same role keys (funded via hardhat_setBalance).
     localhost: {
       url: "http://127.0.0.1:8545",

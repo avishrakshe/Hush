@@ -7,7 +7,7 @@
  *   Live:     GET /events (public: only what a chain observer can see) · GET /admin/events (provider, token)
  *   Jobs:     Merkle batch commit every BATCH_INTERVAL_SECONDS (padded when idle) · credit expiry · eERC sweep
  */
-import { NET, NETWORK, type Role, loadContracts, publicClient, txLink, wallet } from "@hush/config";
+import { NET, NETWORK, type Role, loadContracts, publicClient, stateTag, txLink, wallet } from "@hush/config";
 import { CREDIT_AUTH_HEADER, EXACT, HUSH_CREDIT, hushRegistryAbi, toCaip2 } from "@hush/x402";
 import {
   type FacilitatorEvent,
@@ -36,7 +36,7 @@ export interface FacilitatorOptions {
    * Default FACILITATOR. Give each process its own key — two processes sharing one would race on nonces.
    */
   committerRole?: Role;
-  /** SQLite file. Default apps/facilitator/.data/hush-<network>.db. */
+  /** SQLite file. Default apps/facilitator/.data/hush-<network>[-<local chain tag>].db. */
   dbFile?: string;
   /** Name in log lines. */
   name?: string;
@@ -60,7 +60,7 @@ export async function createFacilitator(opts: FacilitatorOptions = {}) {
   await providerEerc.init(); // derives the provider's eERC decryption key from its wallet signature
 
   const APP_DIR = fileURLToPath(new URL("..", import.meta.url));
-  const db = openDb(opts.dbFile ?? process.env.FACILITATOR_DB ?? path.join(APP_DIR, ".data", `hush-${NETWORK}.db`));
+  const db = openDb(opts.dbFile ?? process.env.FACILITATOR_DB ?? path.join(APP_DIR, ".data", `hush-${NETWORK}${await stateTag()}.db`));
   const store = new SqliteCreditStore(db);
 
   const publicEvents = new EventHub();

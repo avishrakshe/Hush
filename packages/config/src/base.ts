@@ -94,6 +94,18 @@ export function roleKey(role: Role): Hex {
 
 export const publicClient = createPublicClient({ chain: NET.chain, transport: http(NET.rpc) });
 
+let stateTagCache: Promise<string> | undefined;
+/**
+ * Suffix for local state files (facilitator/desk SQLite, agent ledgers). A fresh `pnpm node` reuses every contract
+ * address (same deployer, same nonces) on an empty chain, so files named only by network would carry stale credit,
+ * batches and statements into it. Locally the tag is the genesis block hash — each chain gets its own files. Fuji: "".
+ */
+export function stateTag(): Promise<string> {
+  stateTagCache ??=
+    NETWORK === "localhost" ? publicClient.getBlock({ blockNumber: 0n }).then((b) => `-${(b.hash ?? "0x0").slice(2, 10)}`) : Promise.resolve("");
+  return stateTagCache;
+}
+
 /**
  * Account + wallet client for a role (no eERC). `@hush/config`'s `wallet()` adds the eERC account.
  * `managedNonce`: assign nonces locally (viem's shared nonceManager) for processes that send several transactions from

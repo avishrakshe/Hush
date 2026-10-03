@@ -12,7 +12,7 @@
  * HUSH_MAX_PRICE_USD, HUSH_STORE (history file).
  */
 import "./stdio-guard.js";
-import { NETWORK, ROLES, type Role, loadContracts, publicClient, txLink, wallet } from "@hush/config";
+import { NETWORK, ROLES, type Role, loadContracts, publicClient, stateTag, txLink, wallet } from "@hush/config";
 import { eercToAtomic, formatHusdc, freezeAgent, hushRegistryAbi, mockUsdcAbi, unfreezeAgent } from "@hush/x402";
 import { createHushFetch } from "@hush/x402/client";
 import { JsonFileHushStore } from "@hush/x402/node";
@@ -39,7 +39,7 @@ const DAILY_CAP = usd(process.env.HUSH_DAILY_CAP_USD || "2.00");
 const DEFAULT_MAX_PRICE = usd(process.env.HUSH_MAX_PRICE_USD || "0.10");
 
 const PKG_DIR = fileURLToPath(new URL("..", import.meta.url));
-const store = new JsonFileHushStore(process.env.HUSH_STORE || path.join(PKG_DIR, ".data", `mcp-${ROLE.toLowerCase()}-${NETWORK}.json`));
+const store = new JsonFileHushStore(process.env.HUSH_STORE || path.join(PKG_DIR, ".data", `mcp-${ROLE.toLowerCase()}-${NETWORK}${await stateTag()}.json`));
 
 let ready: Promise<ReturnType<typeof createHushFetch>> | undefined;
 /** Lazily derive the eERC key and build the paying fetch (first tool call), so the server starts instantly. */

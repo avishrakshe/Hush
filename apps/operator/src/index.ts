@@ -12,7 +12,7 @@
  *
  *   pnpm operator          (Fuji)   ·   pnpm operator:local
  */
-import { NETWORK, type Role, URLS, loadContracts, publicClient, wallet } from "@hush/config";
+import { NETWORK, type Role, URLS, loadContracts, publicClient, stateTag, wallet } from "@hush/config";
 import {
   type EercAccount,
   type Sealed,
@@ -60,6 +60,7 @@ type AgentId = keyof typeof AGENTS;
 const agentWallets = { atlas: wallet("ATLAS"), veil: wallet("VEIL") };
 const telemetryUrl = (id: AgentId) => `http://127.0.0.1:${AGENTS[id].port}`;
 const AGENT_DATA = fileURLToPath(new URL("../../agent/.data/", import.meta.url));
+const STATE_TAG = await stateTag(); // same per-chain file naming as apps/agent
 
 // eERC accounts, keys derived lazily from each wallet's signature (nothing leaves this process).
 const accounts = new Map<string, Promise<EercAccount>>();
@@ -253,7 +254,7 @@ app.get(
 );
 
 function readLedger(id: AgentId): HushStoreData {
-  const file = path.join(AGENT_DATA, `${id}-${NETWORK}.json`);
+  const file = path.join(AGENT_DATA, `${id}-${NETWORK}${STATE_TAG}.json`);
   if (!existsSync(file)) return emptyStoreData();
   // Read-only: the running agent owns this file. Files written before v2 lack the trading arrays.
   return { ...emptyStoreData(), ...(JSON.parse(readFileSync(file, "utf8")) as Partial<HushStoreData>) };
