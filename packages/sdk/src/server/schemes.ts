@@ -8,7 +8,7 @@ import type {
   SupportedKind,
 } from "@x402/core/types";
 import { convertToTokenAmount, parseMoney } from "@x402/core/utils";
-import { DEFAULT_CREDIT_TTL_SECONDS, HUSH_CREDIT, HUSH_DIRECT, USDC_DECIMALS } from "../constants.js";
+import { DEFAULT_CREDIT_TTL_SECONDS, HUSH_CREDIT, HUSH_DIRECT, HUSH_RFQ, USDC_DECIMALS } from "../constants.js";
 import type { HushContracts, HushCreditExtra, HushDirectExtra } from "../types.js";
 
 /** Resolves "$0.02" / 0.02 / {amount, asset} into USDC atomic units on the Hush deployment's token. */
@@ -63,6 +63,34 @@ export class HushCreditServerScheme implements SchemeNetworkServer {
       creditTtlSeconds: this.opts.creditTtlSeconds ?? DEFAULT_CREDIT_TTL_SECONDS,
     };
     return { ...req, extra: { ...req.extra, ...extra } };
+  }
+}
+
+/**
+ * x402 v2 resource-server mechanism for `hush-rfq` (Hush Desk). The route's price is a DynamicPrice that returns the
+ * quote's notional as an AssetAmount whose `extra` carries the desk-signed quote; this adds the hush-credit terms
+ * (credit is prepaid at the desk) and the HushAlpha address the quote is signed under.
+ */
+export class HushRfqServerScheme implements SchemeNetworkServer {
+  readonly scheme = HUSH_RFQ;
+  readonly defaultAssetTransferMethod = "default";
+  readonly paymentFlows = PAYMENT_FLOWS;
+
+  constructor(private readonly opts: HushCreditServerOptions) {
+    if (!opts.contracts.hushAlpha) throw new Error("hush-rfq needs HushAlpha in the deployment");
+  }
+
+  async parsePrice(price: Price, _network: Network): Promise<AssetAmount> {
+    return usdcPrice(price, this.opts.contracts);
+  }
+
+  getAssetDecimals(): number {
+    return USDC_DECIMALS;
+  }
+
+  async enhancePaymentRequirements(req: PaymentRequirements, kind: SupportedKind, ext: string[]): Promise<PaymentRequirements> {
+    const credit = await new HushCreditServerScheme(this.opts).enhancePaymentRequirements(req, kind, ext);
+    return { ...credit, extra: { ...credit.extra, hushAlpha: this.opts.contracts.hushAlpha } };
   }
 }
 

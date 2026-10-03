@@ -10,6 +10,7 @@ export {
   mockUsdcAbi,
   mockStockAbi,
   mockStockOracleAbi,
+  hushAlphaAbi,
 } from "./generated/abis.js";
 export { HUSH_DEPLOYMENTS } from "./generated/deployments.js";
 export type { HushContracts } from "./types.js";

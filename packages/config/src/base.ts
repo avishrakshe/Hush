@@ -12,7 +12,7 @@ import { config as loadDotenv } from "dotenv";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Chain, type Hex, createPublicClient, createWalletClient, http } from "viem";
+import { type Chain, type Hex, createPublicClient, createWalletClient, http, nonceManager } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { avalancheFuji, hardhat } from "viem/chains";
 
@@ -39,10 +39,13 @@ export const addrLink = (address: string) => (NET.explorer ? `${NET.explorer}/ad
 export const PORTS = {
   facilitator: Number(process.env.FACILITATOR_PORT || 4022),
   provider: Number(process.env.PROVIDER_PORT || 4021),
+  /** v2: Hush Desk (quotes, custody, settle-outs) with its own in-process facilitator. */
+  desk: Number(process.env.DESK_PORT || 4023),
 };
 export const URLS = {
   facilitator: process.env.FACILITATOR_URL || `http://localhost:${PORTS.facilitator}`,
   provider: process.env.PROVIDER_URL || `http://localhost:${PORTS.provider}`,
+  desk: process.env.DESK_URL || `http://localhost:${PORTS.desk}`,
 };
 
 export function loadContracts(network: NetworkName = NETWORK): HushContracts {
@@ -74,6 +77,7 @@ export function loadContracts(network: NetworkName = NETWORK): HushContracts {
     hushRegistry: c("HushRegistry").address,
     hushLedger: c("HushLedger").address,
     ...(d.contracts.MockStockOracle && { stockOracle: d.contracts.MockStockOracle.address, stocks }),
+    ...(d.contracts.HushAlpha && { hushAlpha: d.contracts.HushAlpha.address }),
   };
 }
 
@@ -90,9 +94,13 @@ export function roleKey(role: Role): Hex {
 
 export const publicClient = createPublicClient({ chain: NET.chain, transport: http(NET.rpc) });
 
-/** Account + wallet client for a role (no eERC). `@hush/config`'s `wallet()` adds the eERC account. */
-export function signer(role: Role) {
-  const account = privateKeyToAccount(roleKey(role));
+/**
+ * Account + wallet client for a role (no eERC). `@hush/config`'s `wallet()` adds the eERC account.
+ * `managedNonce`: assign nonces locally (viem's shared nonceManager) for processes that send several transactions from
+ * one key concurrently — e.g. the desk commits batches, settles `exact` payments and delivers tokens with one wallet.
+ */
+export function signer(role: Role, opts: { managedNonce?: boolean } = {}) {
+  const account = privateKeyToAccount(roleKey(role), opts.managedNonce ? { nonceManager } : undefined);
   const walletClient = createWalletClient({ account, chain: NET.chain, transport: http(NET.rpc) });
   return { role, account, address: account.address, walletClient };
 }

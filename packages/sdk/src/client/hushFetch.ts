@@ -2,11 +2,12 @@ import { toClientEvmSigner } from "@x402/evm";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { type Network, type SchemeNetworkClient, wrapFetchWithPayment, x402Client } from "@x402/fetch";
 import { type Address, type PublicClient, getAddress } from "viem";
-import { EXACT, FUJI_CHAIN_ID, type HushMode, MODE_SCHEME, toCaip2 } from "../constants.js";
+import { EXACT, FUJI_CHAIN_ID, HUSH_CREDIT, HUSH_DIRECT, HUSH_RFQ, type HushMode, toCaip2 } from "../constants.js";
 import type { TypedDataSigner } from "../eip712.js";
 import type { EercAccount } from "../eerc/account.js";
 import { type HushClientEvent, HushCreditClient } from "./hushCredit.js";
 import { HushDirectClient } from "./hushDirect.js";
+import { HushRfqClient, type TradePolicy } from "./hushRfq.js";
 import { type SpendPolicy, assertPolicy, toX402Policy } from "./policy.js";
 import type { PrivacyOptions } from "./privacy.js";
 import { type HushStore, MemoryHushStore } from "./store.js";
@@ -23,6 +24,8 @@ export interface HushFetchOptions {
   /** CAIP-2 network. Defaults to the eERC account's chain, else the public client's chain, else Fuji. */
   network?: Network;
   policy?: SpendPolicy;
+  /** v2: guard rails for trades at a Hush Desk (hush-rfq). Separate from `policy`, which caps API spend. */
+  tradePolicy?: TradePolicy;
   privacy?: PrivacyOptions;
   store?: HushStore;
   onEvent?: (event: HushClientEvent) => void;
@@ -40,8 +43,20 @@ export interface HushFetch {
   client: x402Client;
   /** Present when an eERC account was supplied: refunds, credit state, voucher verification. */
   credit?: HushCreditClient;
+  /** v2: present with an eERC account — pays Hush Desk quotes (use HushDeskClient for buy/sell/positions). */
+  rfq?: HushRfqClient;
   store: HushStore;
 }
+
+/**
+ * Which offered scheme each mode pays with, in order. A private agent pays a data API with hush-credit and a desk quote
+ * with hush-rfq (both vouchers against prepaid encrypted credit) — and never falls back to a public payment.
+ */
+const MODE_PREFERENCE: Record<HushMode, string[]> = {
+  public: [EXACT],
+  [HUSH_CREDIT]: [HUSH_CREDIT, HUSH_RFQ],
+  [HUSH_DIRECT]: [HUSH_DIRECT],
+};
 
 /** Builds a paying fetch for an agent. Reuse the returned object — it holds the per-provider voucher state. */
 export function createHushFetch(opts: HushFetchOptions): HushFetch {
@@ -53,6 +68,7 @@ export function createHushFetch(opts: HushFetchOptions): HushFetch {
   ];
 
   let credit: HushCreditClient | undefined;
+  let rfq: HushRfqClient | undefined;
   if (opts.eercClient) {
     credit = new HushCreditClient({
       signer: opts.wallet,
@@ -64,13 +80,15 @@ export function createHushFetch(opts: HushFetchOptions): HushFetch {
       onEvent: opts.onEvent,
       fetch: opts.fetch,
     });
+    rfq = new HushRfqClient({ signer: opts.wallet, credit, store, policy: opts.tradePolicy, onEvent: opts.onEvent });
     schemes.push({ network, client: credit });
     schemes.push({ network, client: new HushDirectClient({ eerc: opts.eercClient, store, policy: opts.policy }) });
+    schemes.push({ network, client: rfq });
   } else if (opts.mode !== "public") {
     throw new Error(`mode "${opts.mode}" needs an eercClient`);
   }
 
-  const preferred = MODE_SCHEME[opts.mode];
+  const preferred = MODE_PREFERENCE[opts.mode];
   const client = x402Client.fromConfig({
     schemes,
     // x402's built-in spend controls only recognise its default assets; SpendPolicy (below + in each scheme) is
@@ -78,10 +96,12 @@ export function createHushFetch(opts: HushFetchOptions): HushFetch {
     spendControls: false,
     policies: [toX402Policy(opts.policy)],
     paymentRequirementsSelector: (_version, reqs) => {
-      const match = reqs.find((r) => r.scheme === preferred && r.network === network);
-      if (match) return match;
+      for (const scheme of preferred) {
+        const match = reqs.find((r) => r.scheme === scheme && r.network === network);
+        if (match) return match;
+      }
       if (!opts.allowFallback || reqs.length === 0) {
-        throw new Error(`server does not offer "${preferred}" on ${network} (offered: ${reqs.map((r) => r.scheme).join(", ") || "none"})`);
+        throw new Error(`server does not offer "${preferred.join('" or "')}" on ${network} (offered: ${reqs.map((r) => r.scheme).join(", ") || "none"})`);
       }
       return reqs[0]!;
     },
@@ -106,7 +126,7 @@ export function createHushFetch(opts: HushFetchOptions): HushFetch {
     });
   });
 
-  return { fetch: wrapFetchWithPayment(opts.fetch ?? globalThis.fetch, client), client, credit, store };
+  return { fetch: wrapFetchWithPayment(opts.fetch ?? globalThis.fetch, client), client, credit, rfq, store };
 }
 
 /** One-shot convenience: `hushFetch(url, { mode, wallet, eercClient, policy, privacy })`. Prefer createHushFetch for agents. */

@@ -89,9 +89,17 @@ export interface HushProviderServiceOptions {
   onEvent?: (e: FacilitatorEvent) => void;
 }
 
-type VerifyResult =
+export type VerifyResult =
   | { ok: true; voucher: Voucher; increment: bigint; credit: CreditRecord }
   | { ok: false; code: string; message: string; agent?: Address };
+
+/** How a voucher-paid scheme other than hush-credit binds its vouchers (see verifyVoucher). */
+export interface VoucherCheckOptions {
+  /** Scheme the requirements must carry. Default hush-credit. */
+  scheme?: string;
+  /** Expected voucher.requestHash (hush-rfq: the quote digest). Overrides the resource-URL binding. */
+  requestHash?: Hex;
+}
 
 /**
  * The provider-side brain of hush-credit: decrypts top-ups, issues signed receipts, verifies and settles vouchers,
@@ -145,21 +153,35 @@ export class HushProviderService {
    * reveal every call it makes and what it spends.
    */
   async authorizedCreditState(agent: Address, auth: string | undefined): Promise<CreditStateJson> {
+    return this.creditState(await this.assertAgentOrOwner(agent, auth));
+  }
+
+  /**
+   * Checks a CREDIT_AUTH_HEADER value (`<issuedAt>.<signature>` over a CreditQuery for this provider) and returns the
+   * agent. Accepted only from the agent itself or its registered owner. Also guards the desk's position reads.
+   */
+  async assertAgentOrOwner(agent: Address, auth: string | undefined): Promise<Address> {
     const [issuedAtRaw, signature] = (auth ?? "").split(".");
     if (!issuedAtRaw || !/^\d+$/.test(issuedAtRaw) || !signature?.startsWith("0x")) {
-      throw new HushError("unauthorized", "credit queries must be signed by the agent or its owner", 401);
+      throw new HushError("unauthorized", "queries must be signed by the agent or its owner", 401);
     }
     const issuedAt = BigInt(issuedAtRaw);
     const age = Math.floor(this.now() / 1000) - Number(issuedAt);
-    if (age > CREDIT_QUERY_MAX_AGE_SECONDS || age < -60) throw new HushError("expired_request", "credit query expired or from the future", 401);
+    if (age > CREDIT_QUERY_MAX_AGE_SECONDS || age < -60) throw new HushError("expired_request", "query expired or from the future", 401);
 
     const query = { agent: getAddress(agent), provider: this.provider, issuedAt };
     const signer = await recoverCreditQuerySigner(this.domain, query, signature as Hex).catch(() => undefined);
-    const owner = signer && !isAddressEqual(signer, query.agent) ? await this.agentOwner(query.agent) : undefined;
-    if (!signer || !(isAddressEqual(signer, query.agent) || (owner && isAddressEqual(owner, signer)))) {
-      throw new HushError("unauthorized", "credit queries must be signed by the agent or its owner", 401);
+    if (!signer || !(await this.isAgentOrOwner(query.agent, signer))) {
+      throw new HushError("unauthorized", "queries must be signed by the agent or its owner", 401);
     }
-    return this.creditState(query.agent);
+    return query.agent;
+  }
+
+  /** True if `signer` is `agent` itself or the owner HushRegistry lists for it. */
+  async isAgentOrOwner(agent: Address, signer: Address): Promise<boolean> {
+    if (isAddressEqual(signer, agent)) return true;
+    const owner = await this.agentOwner(agent);
+    return !!owner && isAddressEqual(owner, signer);
   }
 
   toJson(c: CreditRecord, frozen = false): CreditStateJson {
@@ -169,6 +191,7 @@ export class HushProviderService {
       creditedTotal: c.creditedTotal.toString(),
       refundedTotal: c.refundedTotal.toString(),
       settledCumulative: c.settledCumulative.toString(),
+      proceedsTotal: c.proceedsTotal.toString(),
       available: available(c).toString(),
       lastNonce: c.lastNonce.toString(),
       lastTopUpAt: c.lastTopUpAt,
@@ -215,7 +238,7 @@ export class HushProviderService {
       throw new HushError("agent_mismatch", `top-up credits ${beneficiary}, not ${claimedAgent}`);
     }
 
-    return this.withLock(beneficiary, async () => {
+    return this.withAgentLock(beneficiary, async () => {
       if (await this.opts.store.hasTopUp(txHash)) throw new HushError("duplicate_topup", "top-up already credited", 409);
       const credit = await this.opts.store.getCredit(beneficiary, this.provider);
       const now = this.now();
@@ -248,8 +271,12 @@ export class HushProviderService {
 
   // ───────────────────────────── vouchers ─────────────────────────────
 
-  /** All checks for a hush-credit voucher. Pure read — settle() re-runs it under the agent lock. */
-  async verifyVoucher(payload: HushCreditPayload, req: PaymentRequirements, resourceUrl?: string): Promise<VerifyResult> {
+  /**
+   * All checks for a hush-credit voucher. Pure read — settle() re-runs it under the agent lock.
+   * `opts` lets other voucher-paid schemes reuse it: hush-rfq passes its scheme and binds the voucher to the quote
+   * digest instead of the resource URL.
+   */
+  async verifyVoucher(payload: HushCreditPayload, req: PaymentRequirements, resourceUrl?: string, opts: VoucherCheckOptions = {}): Promise<VerifyResult> {
     let voucher: Voucher;
     try {
       voucher = voucherFromJson(payload.voucher);
@@ -259,11 +286,16 @@ export class HushProviderService {
     const agent = getAddress(voucher.agent);
     const fail = (code: string, message: string): VerifyResult => ({ ok: false, code, message, agent });
 
-    if (req.scheme !== HUSH_CREDIT) return fail("unsupported_scheme", `expected ${HUSH_CREDIT}`);
+    const scheme = opts.scheme ?? HUSH_CREDIT;
+    if (req.scheme !== scheme) return fail("unsupported_scheme", `expected ${scheme}`);
     if (!isAddressEqual(voucher.provider, this.provider) || !isAddressEqual(req.payTo as Address, this.provider)) {
       return fail("wrong_provider", "voucher is not for this provider");
     }
-    if (resourceUrl && voucher.requestHash !== requestHashFor(resourceUrl)) {
+    if (opts.requestHash) {
+      if (voucher.requestHash.toLowerCase() !== opts.requestHash.toLowerCase()) {
+        return fail("request_mismatch", "voucher requestHash does not match the request it pays for");
+      }
+    } else if (resourceUrl && voucher.requestHash !== requestHashFor(resourceUrl)) {
       return fail("request_mismatch", "voucher requestHash does not match the requested resource");
     }
     if (voucher.expiry * 1000n < BigInt(this.now())) return fail("voucher_expired", "voucher expired");
@@ -281,8 +313,9 @@ export class HushProviderService {
     const credit = await this.opts.store.getCredit(agent, this.provider);
     if (voucher.nonce <= credit.lastNonce) return fail("stale_nonce", `nonce ${voucher.nonce} ≤ last settled ${credit.lastNonce}`);
     const increment = voucher.cumulativeSpent - credit.settledCumulative;
+    if (increment < 0n) return fail("invalid_payload", "cumulativeSpent went backwards");
     if (increment < BigInt(req.amount)) return fail("underpaid", `voucher adds ${increment}, price is ${req.amount}`);
-    if (voucher.cumulativeSpent > credit.creditedTotal - credit.refundedTotal) {
+    if (voucher.cumulativeSpent > credit.creditedTotal + credit.proceedsTotal - credit.refundedTotal) {
       return fail("insufficient_credit", "top up first: voucher exceeds prepaid credit");
     }
     if (credit.lastTopUpAt !== null && this.now() > credit.lastTopUpAt + this.ttlMs) {
@@ -298,33 +331,50 @@ export class HushProviderService {
   }
 
   /** Records a verified voucher as consumed. It lands in the next Merkle batch committed to HushLedger. */
-  async settleVoucher(payload: HushCreditPayload, req: PaymentRequirements, resourceUrl?: string) {
+  async settleVoucher(payload: HushCreditPayload, req: PaymentRequirements, resourceUrl?: string, opts: VoucherCheckOptions = {}) {
     const agent = getAddress(payload.voucher.agent);
-    return this.withLock(agent, async () => {
-      const v = await this.verifyVoucher(payload, req, resourceUrl);
+    return this.withAgentLock(agent, async () => {
+      const v = await this.verifyVoucher(payload, req, resourceUrl, opts);
       if (!v.ok) {
         this.emit({ type: "call:rejected", agent, reason: v.code, message: v.message });
         return v;
       }
-      const leaf = voucherLeaf({ voucher: v.voucher, signature: payload.signature });
-      const updated: CreditRecord = { ...v.credit, settledCumulative: v.voucher.cumulativeSpent, lastNonce: v.voucher.nonce };
-      const record: SettledVoucherRecord = {
-        leaf,
-        agent,
-        provider: this.provider,
-        voucher: payload.voucher,
-        signature: payload.signature,
-        amount: v.increment,
-        resource: resourceUrl ?? "",
-        settledAt: this.now(),
-        batchId: null,
-        proof: null,
-      };
-      await this.opts.store.addSettledVoucher(record);
-      await this.opts.store.putCredit(updated);
-      this.emit({ type: "call", agent, leaf, amount: v.increment, cumulativeSpent: v.voucher.cumulativeSpent, resource: record.resource });
-      return { ok: true as const, leaf, increment: v.increment, credit: updated };
+      return this.recordVoucher(v, payload, resourceUrl ?? "");
     });
+  }
+
+  /**
+   * Stores a verified voucher and advances the agent's credit. Caller must hold `withAgentLock(agent)` and have just
+   * run verifyVoucher under it (the desk does both around booking a fill, so payment and fill are atomic).
+   */
+  async recordVoucher(v: Extract<VerifyResult, { ok: true }>, payload: HushCreditPayload, resource: string) {
+    const agent = getAddress(v.voucher.agent);
+    const leaf = voucherLeaf({ voucher: v.voucher, signature: payload.signature });
+    const updated: CreditRecord = { ...v.credit, settledCumulative: v.voucher.cumulativeSpent, lastNonce: v.voucher.nonce };
+    const record: SettledVoucherRecord = {
+      leaf,
+      agent,
+      provider: this.provider,
+      voucher: payload.voucher,
+      signature: payload.signature,
+      amount: v.increment,
+      resource,
+      settledAt: this.now(),
+      batchId: null,
+      proof: null,
+    };
+    await this.opts.store.addSettledVoucher(record);
+    await this.opts.store.putCredit(updated);
+    this.emit({ type: "call", agent, leaf, amount: v.increment, cumulativeSpent: v.voucher.cumulativeSpent, resource });
+    return { ok: true as const, leaf, increment: v.increment, credit: updated };
+  }
+
+  /** v2 (desk): credit sale proceeds to the agent. Caller holds `withAgentLock(agent)`. */
+  async creditProceeds(agent: Address, amount: bigint): Promise<CreditRecord> {
+    const credit = await this.opts.store.getCredit(getAddress(agent), this.provider);
+    const updated: CreditRecord = { ...credit, proceedsTotal: credit.proceedsTotal + amount };
+    await this.opts.store.putCredit(updated);
+    return updated;
   }
 
   // ───────────────────────────── hush-direct ─────────────────────────────
@@ -352,7 +402,7 @@ export class HushProviderService {
   }
 
   async settleDirect(txHash: Hex, req: PaymentRequirements, resourceUrl?: string) {
-    return this.withLock(`direct:${txHash}`, async () => {
+    return this.withAgentLock(`direct:${txHash}`, async () => {
       const v = await this.verifyDirect(txHash, req);
       if (!v.ok) return v;
       await this.opts.store.addDirectPayment({
@@ -385,7 +435,7 @@ export class HushProviderService {
 
   /** Returns all refundable credit (floored to whole eERC units) to the agent via a private transfer. */
   async refundAgent(agent: Address, reason: "requested" | "expired"): Promise<RefundResponse> {
-    return this.withLock(agent, async () => {
+    return this.withAgentLock(agent, async () => {
       const credit = await this.opts.store.getCredit(agent, this.provider);
       const units = atomicToEerc(available(credit), this.contracts.eercDecimals);
       const amount = eercToAtomic(units, this.contracts.eercDecimals);
@@ -534,7 +584,7 @@ export class HushProviderService {
   }
 
   /** Serializes all credit mutations per key (agent), so read-check-write sequences are atomic. */
-  private withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  withAgentLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const k = key.toLowerCase();
     const prev = this.locks.get(k) ?? Promise.resolve();
     const run = prev.then(fn, fn);
@@ -555,4 +605,4 @@ export class HushProviderService {
   }
 }
 
-export const available = (c: CreditRecord) => c.creditedTotal - c.refundedTotal - c.settledCumulative;
+export const available = (c: CreditRecord) => c.creditedTotal + c.proceedsTotal - c.refundedTotal - c.settledCumulative;

@@ -24,8 +24,8 @@ export function circuitPaths(): CircuitURLs {
 }
 
 /** Account, wallet client and (lazily initialised) eERC account for a role. */
-export function wallet(role: Role) {
-  const base = signer(role);
+export function wallet(role: Role, opts: { managedNonce?: boolean } = {}) {
+  const base = signer(role, opts);
   let eerc: EercAccount | undefined;
   return {
     ...base,

@@ -33,6 +33,9 @@ export type HushClientEvent =
   | { type: "voucher:rejected"; provider: Address; leaf: Hex; reason: string }
   | { type: "refund"; provider: Address; amount: bigint; txHash: Hex | null }
   | { type: "receipt:mismatch"; provider: Address; expected: bigint; receipt: SignedCreditReceipt }
+  | { type: "trade:filled"; desk: Address; quoteId: Hex; ticker: string; side: "buy" | "sell"; size: bigint; price: bigint; notional: bigint; position: bigint }
+  | { type: "trade:rejected"; desk: Address; quoteId?: Hex; reason: string }
+  | { type: "settle-out:requested"; desk: Address; ticker: string; size: bigint; requestId: Hex }
   | { type: "error"; error: Error };
 
 export interface HushCreditClientOptions {
@@ -50,7 +53,7 @@ export interface HushCreditClientOptions {
   onEvent?: (event: HushClientEvent) => void;
 }
 
-interface ProviderConfig {
+export interface ProviderConfig {
   extra: HushCreditExtra;
   chainId: number;
 }
@@ -110,14 +113,41 @@ export class HushCreditClient implements SchemeNetworkClient {
     // Policy is enforced before anything is signed or sent.
     await assertPolicy(this.opts.policy, this.store, provider, price);
 
+    const payload = await this.createVoucherPayment(provider, { extra, chainId }, price, requestHashFor(resource), resource, {
+      allowTopUp: true,
+      recordPayment: true,
+    });
+    return { x402Version, payload: payload as unknown as Record<string, unknown> };
+  }
+
+  /**
+   * Signs this agent's next voucher for `provider` (one nonce stream and lock per provider, shared by every voucher-paid
+   * scheme). hush-credit binds `requestHash` to the resource URL; hush-rfq binds it to the desk quote's digest and
+   * passes `allowTopUp: false` (a top-up takes longer than a quote lives) and `recordPayment: false` (trade notional is
+   * not API spend, so it must not eat the data budget). Holds the provider lock until `finishVoucher` / the payment
+   * response releases it.
+   */
+  async createVoucherPayment(
+    provider: Address,
+    cfg: ProviderConfig,
+    price: bigint,
+    requestHash: Hex,
+    resource: string,
+    opts: { allowTopUp: boolean; recordPayment: boolean },
+  ): Promise<HushCreditPayload> {
+    const { extra, chainId } = cfg;
+    this.providers.set(provider.toLowerCase(), cfg);
     // Held until the paid request completes, so concurrent calls to one provider never sign the same nonce.
     const release = await this.acquire(provider);
     try {
-      let credit = await this.fetchCredit(provider, { extra, chainId });
+      let credit = await this.fetchCredit(provider, cfg);
       if (credit.frozen) throw new Error("agent is frozen by its owner (HushRegistry kill switch)");
 
       if (BigInt(credit.available) < price) {
-        credit = await this.topUp(provider, { extra, chainId }, price - BigInt(credit.available), "needed");
+        if (!opts.allowTopUp) {
+          throw new Error(`insufficient credit at ${provider}: ${credit.available} available, ${price} needed — top up first`);
+        }
+        credit = await this.topUp(provider, cfg, price - BigInt(credit.available), "needed");
       }
 
       const voucher = {
@@ -125,7 +155,7 @@ export class HushCreditClient implements SchemeNetworkClient {
         provider,
         cumulativeSpent: BigInt(credit.settledCumulative) + price,
         nonce: BigInt(credit.lastNonce) + 1n,
-        requestHash: requestHashFor(resource),
+        requestHash,
         expiry: BigInt(Math.floor(Date.now() / 1000) + (this.opts.voucherTtlSeconds ?? DEFAULT_VOUCHER_TTL_SECONDS)),
       };
       const signature = await signVoucher(this.opts.signer, hushDomain(chainId, extra.hushLedger), voucher);
@@ -141,18 +171,36 @@ export class HushCreditClient implements SchemeNetworkClient {
         status: "signed",
         createdAt: now,
       });
-      await this.store.addPayment({ id: leaf, scheme: HUSH_CREDIT, provider, amount: price.toString(), resource, at: now });
+      if (opts.recordPayment) await this.store.addPayment({ id: leaf, scheme: HUSH_CREDIT, provider, amount: price.toString(), resource, at: now });
       this.emit({ type: "voucher:signed", provider, amount: price, cumulativeSpent: voucher.cumulativeSpent, nonce: voucher.nonce, leaf });
 
-      this.maybeSchedulePreemptiveTopUp(provider, { extra, chainId }, BigInt(credit.available) - price);
+      if (opts.allowTopUp) this.maybeSchedulePreemptiveTopUp(provider, cfg, BigInt(credit.available) - price);
 
       const payload: HushCreditPayload = { voucher: voucherToJson(voucher), signature };
       this.releases.set(payload, release);
-      return { x402Version, payload: payload as unknown as Record<string, unknown> };
+      return payload;
     } catch (err) {
       release();
       throw err;
     }
+  }
+
+  /** Marks a voucher settled/rejected and releases the provider lock (for vouchers sent outside the x402 flow). */
+  async finishVoucher(payload: HushCreditPayload, outcome: { ok: true } | { ok: false; reason: string }) {
+    const release = this.releases.get(payload);
+    try {
+      const leaf = voucherLeaf({ voucher: voucherFromJson(payload.voucher), signature: payload.signature });
+      const provider = getAddress(payload.voucher.provider);
+      await this.store.updateVoucher(leaf, { status: outcome.ok ? "settled" : "rejected" });
+      this.emit(outcome.ok ? { type: "voucher:settled", provider, leaf } : { type: "voucher:rejected", provider, leaf, reason: outcome.reason });
+    } finally {
+      release?.();
+    }
+  }
+
+  /** Remember a provider's hush-credit terms (e.g. the desk's, learned from a hush-rfq 402) for top-ups and refunds. */
+  registerTerms(provider: Address, cfg: ProviderConfig) {
+    this.providers.set(getAddress(provider).toLowerCase(), cfg);
   }
 
   // ───────────────────────────── public API ─────────────────────────────
@@ -309,24 +357,17 @@ export class HushCreditClient implements SchemeNetworkClient {
     this.timers.set(key, timer);
   }
 
-  private async onPaymentResponse(ctx: PaymentResponseContext) {
+  /** Settles or rejects the voucher behind a completed x402 request (also called by the hush-rfq client). */
+  async onPaymentResponse(ctx: PaymentResponseContext) {
     const payload = ctx.paymentPayload.payload as unknown as HushCreditPayload;
-    const release = this.releases.get(payload);
-    try {
-      if (!payload?.voucher) return;
-      const leaf = voucherLeaf({ voucher: voucherFromJson(payload.voucher), signature: payload.signature });
-      const provider = getAddress(payload.voucher.provider);
-      if (ctx.settleResponse?.success) {
-        await this.store.updateVoucher(leaf, { status: "settled" });
-        this.emit({ type: "voucher:settled", provider, leaf });
-      } else {
-        const reason = ctx.settleResponse?.errorReason ?? ctx.error?.message ?? "payment rejected";
-        await this.store.updateVoucher(leaf, { status: "rejected" });
-        this.emit({ type: "voucher:rejected", provider, leaf, reason });
-      }
-    } finally {
-      release?.();
+    if (!payload?.voucher) {
+      this.releases.get(payload)?.();
+      return;
     }
+    await this.finishVoucher(
+      payload,
+      ctx.settleResponse?.success ? { ok: true } : { ok: false, reason: ctx.settleResponse?.errorReason ?? ctx.error?.message ?? "payment rejected" },
+    );
   }
 
   /** Per-provider mutex with a safety timeout (in case a request dies without a payment response). */

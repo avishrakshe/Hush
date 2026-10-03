@@ -1,5 +1,6 @@
 import type { PaymentRequirements } from "@x402/core/types";
 import { type Address, isAddressEqual } from "viem";
+import { HUSH_RFQ } from "../constants.js";
 import { formatUsdc } from "../units.js";
 import type { HushStore } from "./store.js";
 
@@ -47,12 +48,16 @@ export async function assertPolicy(policy: SpendPolicy | undefined, store: HushS
   }
 }
 
-/** The static parts of the policy as an x402 PaymentPolicy, so disallowed offers are filtered out up front. */
+/**
+ * The static parts of the policy as an x402 PaymentPolicy, so disallowed offers are filtered out up front. Desk quotes
+ * (hush-rfq) are trades, not API spend: TradePolicy governs them, so this filter leaves them alone.
+ */
 export function toX402Policy(policy: SpendPolicy | undefined) {
   return (_version: number, reqs: PaymentRequirements[]) =>
     reqs.filter(
       (r) =>
-        (!policy?.allowedProviders || policy.allowedProviders.some((p) => isAddressEqual(p, r.payTo as Address))) &&
-        (policy?.maxPerCall === undefined || BigInt(r.amount) <= policy.maxPerCall),
+        r.scheme === HUSH_RFQ ||
+        ((!policy?.allowedProviders || policy.allowedProviders.some((p) => isAddressEqual(p, r.payTo as Address))) &&
+          (policy?.maxPerCall === undefined || BigInt(r.amount) <= policy.maxPerCall)),
     );
 }

@@ -11,6 +11,8 @@ export interface CreditRecord {
   refundedTotal: bigint;
   /** cumulativeSpent of the last settled voucher. */
   settledCumulative: bigint;
+  /** v2: sale proceeds the desk credited back to the agent (always 0 for API providers). */
+  proceedsTotal: bigint;
   lastNonce: bigint;
   lastTopUpAt: number | null;
 }
@@ -108,6 +110,7 @@ export const emptyCredit = (agent: Address, provider: Address): CreditRecord => 
   creditedTotal: 0n,
   refundedTotal: 0n,
   settledCumulative: 0n,
+  proceedsTotal: 0n,
   lastNonce: 0n,
   lastTopUpAt: null,
 });

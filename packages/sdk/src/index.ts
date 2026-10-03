@@ -2,6 +2,7 @@ export * from "./constants.js";
 export * from "./types.js";
 export * from "./units.js";
 export * from "./eip712.js";
+export * from "./alpha.js";
 export * from "./merkle.js";
 export { EercAccount, type CircuitURLs, type EercAccountOptions, type EncryptedBalance } from "./eerc/account.js";
 export { readEercTransfer, receiverPct, auditorPct, type EercTransfer } from "./eerc/calldata.js";
@@ -13,6 +14,7 @@ export {
   mockUsdcAbi,
   mockStockAbi,
   mockStockOracleAbi,
+  hushAlphaAbi,
 } from "./generated/abis.js";
 export { HUSH_DEPLOYMENTS } from "./generated/deployments.js";
 export * from "./stocks.js";

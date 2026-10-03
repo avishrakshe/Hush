@@ -18,6 +18,8 @@ export interface HushContracts {
   stockOracle?: Address;
   /** v2: mock stock token per ticker. The same eERC converter wraps them (tokenIds assigned on first deposit). */
   stocks?: Partial<Record<StockTicker, Address>>;
+  /** v2: HushAlpha — EIP-712 domain for desk quotes/fills/statements and signal records; chain heads. */
+  hushAlpha?: Address;
 }
 
 /**
@@ -130,6 +132,8 @@ export interface CreditStateJson {
   creditedTotal: string;
   refundedTotal: string;
   settledCumulative: string;
+  /** v2: sale proceeds the desk credited back (0 for API providers). Counts toward `available`. */
+  proceedsTotal?: string;
   available: string;
   lastNonce: string;
   lastTopUpAt: number | null;
@@ -161,4 +165,158 @@ export interface VoucherProofJson {
   root: Hex;
   proof: Hex[];
   commitTx: Hex | null;
+}
+
+// ─── v2: Hush Desk + HushAlpha records (amounts: size in 0.01-share units, prices in USDC atomic per share) ───
+
+/** Desk-signed firm price. notional = size × price / 100 (USDC atomic). */
+export interface Quote {
+  quoteId: Hex;
+  desk: Address;
+  agent: Address;
+  /** bytes32 ticker (see tickerToBytes32). */
+  ticker: Hex;
+  /** 1 = buy, 2 = sell (SIDE). */
+  side: number;
+  size: bigint;
+  price: bigint;
+  notional: bigint;
+  /** Unix seconds. */
+  expiry: bigint;
+}
+
+export interface FillReceipt {
+  quoteId: Hex;
+  desk: Address;
+  agent: Address;
+  ticker: Hex;
+  side: number;
+  size: bigint;
+  price: bigint;
+  filledAt: bigint;
+}
+
+/** What the desk custodies for `agent` in `ticker` after change number `seq` (strictly increasing per agent). */
+export interface PositionStatement {
+  desk: Address;
+  agent: Address;
+  ticker: Hex;
+  position: bigint;
+  /** USDC atomic per share. */
+  avgCost: bigint;
+  seq: bigint;
+  issuedAt: bigint;
+}
+
+/** Provider-signed signal (Proof of Alpha leaf). direction: 0 flat, 1 up, 2 down. */
+export interface SignalRecord {
+  provider: Address;
+  ticker: Hex;
+  direction: number;
+  confidenceBps: number;
+  price: bigint;
+  issuedAt: bigint;
+  horizonSec: bigint;
+}
+
+export interface SettleOutRequest {
+  requestId: Hex;
+  agent: Address;
+  desk: Address;
+  ticker: Hex;
+  size: bigint;
+  deadline: bigint;
+}
+
+export interface QuoteJson {
+  quoteId: Hex;
+  desk: Address;
+  agent: Address;
+  ticker: Hex;
+  side: number;
+  size: string;
+  price: string;
+  notional: string;
+  expiry: string;
+}
+
+export interface FillReceiptJson {
+  quoteId: Hex;
+  desk: Address;
+  agent: Address;
+  ticker: Hex;
+  side: number;
+  size: string;
+  price: string;
+  filledAt: string;
+}
+
+export interface PositionStatementJson {
+  desk: Address;
+  agent: Address;
+  ticker: Hex;
+  position: string;
+  avgCost: string;
+  seq: string;
+  issuedAt: string;
+}
+
+export interface SignalRecordJson {
+  provider: Address;
+  ticker: Hex;
+  direction: number;
+  confidenceBps: number;
+  price: string;
+  issuedAt: string;
+  horizonSec: string;
+}
+
+export interface SettleOutRequestJson {
+  requestId: Hex;
+  agent: Address;
+  desk: Address;
+  ticker: Hex;
+  size: string;
+  deadline: string;
+}
+
+export interface SignedQuoteJson {
+  quote: QuoteJson;
+  signature: Hex;
+}
+export interface SignedFillJson {
+  fill: FillReceiptJson;
+  signature: Hex;
+}
+export interface SignedStatementJson {
+  statement: PositionStatementJson;
+  signature: Hex;
+}
+
+/** `PaymentRequirements.extra` for hush-rfq: the hush-credit terms (credit lives at the desk) + the signed quote. */
+export interface HushRfqExtra extends HushCreditExtra {
+  hushAlpha: Address;
+  quote: QuoteJson;
+  quoteSignature: Hex;
+}
+
+/** `SettleResponse.extra` for hush-rfq: the desk's signed receipts, delivered in PAYMENT-RESPONSE. */
+export interface RfqSettleExtra {
+  voucherLeaf: Hex;
+  fill: SignedFillJson;
+  statement: SignedStatementJson;
+  available: string;
+}
+
+/** A queued or executed settle-out (custodied shares → private eERC transfer to the agent). */
+export interface SettleOutJson {
+  requestId: Hex;
+  agent: Address;
+  ticker: string;
+  size: string;
+  status: "queued" | "sent" | "failed";
+  txHash: Hex | null;
+  createdAt: number;
+  executedAt: number | null;
+  error?: string;
 }

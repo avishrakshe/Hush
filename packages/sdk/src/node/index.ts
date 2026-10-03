@@ -8,7 +8,7 @@ import { type HushStoreData, MemoryHushStore, emptyStoreData } from "../client/s
  */
 export class JsonFileHushStore extends MemoryHushStore {
   constructor(private readonly file: string) {
-    super(existsSync(file) ? { ...emptyStoreData(), ...(JSON.parse(readFileSync(file, "utf8")) as HushStoreData) } : emptyStoreData());
+    super(existsSync(file) ? { ...emptyStoreData(), ...(JSON.parse(readFileSync(file, "utf8")) as Partial<HushStoreData>) } : emptyStoreData());
     mkdirSync(path.dirname(file), { recursive: true });
   }
 

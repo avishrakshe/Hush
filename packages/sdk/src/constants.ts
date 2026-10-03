@@ -1,7 +1,10 @@
 export const HUSH_CREDIT = "hush-credit" as const;
 export const HUSH_DIRECT = "hush-direct" as const;
+/** v2: the Hush Desk's request-for-quote scheme — the 402 carries a desk-signed quote, paid with a hush-credit voucher. */
+export const HUSH_RFQ = "hush-rfq" as const;
 export const EXACT = "exact" as const;
 export type HushMode = "public" | typeof HUSH_CREDIT | typeof HUSH_DIRECT;
+export type PrivateScheme = typeof HUSH_CREDIT | typeof HUSH_DIRECT | typeof HUSH_RFQ;
 
 /** Scheme name used on the wire for each client mode. `public` is standard x402 `exact`. */
 export const MODE_SCHEME: Record<HushMode, string> = {
@@ -103,6 +106,86 @@ export const ORACLE_PRICE_DECIMALS = 6;
  * whole centishares and a settle-out never leaves dust. 1 centishare = 10^16 token wei.
  */
 export const CENTISHARE = 10n ** 16n;
+
+// ─── v2: HushAlpha typed data (domain {name:"HushAlpha", version:"1", verifyingContract: HushAlpha}) ───
+
+export const ALPHA_EIP712_NAME = "HushAlpha";
+export const ALPHA_EIP712_VERSION = "1";
+
+/** Trade side as encoded in Quote / FillReceipt. */
+export const SIDE = { buy: 1, sell: 2 } as const;
+export type Side = keyof typeof SIDE;
+/** Signal direction as encoded in SignalRecord (0 = flat: no call). */
+export const DIRECTION = { FLAT: 0, UP: 1, DOWN: 2 } as const;
+
+/** Must match HushAlpha.QUOTE_TYPEHASH etc. (the contract tests pin the strings). */
+export const QUOTE_TYPES = {
+  Quote: [
+    { name: "quoteId", type: "bytes32" },
+    { name: "desk", type: "address" },
+    { name: "agent", type: "address" },
+    { name: "ticker", type: "bytes32" },
+    { name: "side", type: "uint8" },
+    { name: "size", type: "uint64" },
+    { name: "price", type: "uint256" },
+    { name: "notional", type: "uint256" },
+    { name: "expiry", type: "uint64" },
+  ],
+} as const;
+
+export const FILL_RECEIPT_TYPES = {
+  FillReceipt: [
+    { name: "quoteId", type: "bytes32" },
+    { name: "desk", type: "address" },
+    { name: "agent", type: "address" },
+    { name: "ticker", type: "bytes32" },
+    { name: "side", type: "uint8" },
+    { name: "size", type: "uint64" },
+    { name: "price", type: "uint256" },
+    { name: "filledAt", type: "uint64" },
+  ],
+} as const;
+
+export const POSITION_STATEMENT_TYPES = {
+  PositionStatement: [
+    { name: "desk", type: "address" },
+    { name: "agent", type: "address" },
+    { name: "ticker", type: "bytes32" },
+    { name: "position", type: "uint64" },
+    { name: "avgCost", type: "uint256" },
+    { name: "seq", type: "uint64" },
+    { name: "issuedAt", type: "uint64" },
+  ],
+} as const;
+
+export const SIGNAL_RECORD_TYPES = {
+  SignalRecord: [
+    { name: "provider", type: "address" },
+    { name: "ticker", type: "bytes32" },
+    { name: "direction", type: "uint8" },
+    { name: "confidenceBps", type: "uint16" },
+    { name: "price", type: "uint256" },
+    { name: "issuedAt", type: "uint64" },
+    { name: "horizonSec", type: "uint64" },
+  ],
+} as const;
+
+/** Agent-signed request to have custodied shares delivered as a private eERC transfer (off-chain only). */
+export const SETTLE_OUT_TYPES = {
+  SettleOutRequest: [
+    { name: "requestId", type: "bytes32" },
+    { name: "agent", type: "address" },
+    { name: "desk", type: "address" },
+    { name: "ticker", type: "bytes32" },
+    { name: "size", type: "uint64" },
+    { name: "deadline", type: "uint64" },
+  ],
+} as const;
+
+/** Desk quotes live this long. Short on purpose: the quote is a firm price the desk carries the risk of. */
+export const DEFAULT_QUOTE_TTL_SECONDS = 15;
+/** Encrypted-metadata tag on settle-out transfers (desk → agent). */
+export const SETTLE_OUT_MEMO = "hush:settle-out:v1";
 
 /** Encrypted-metadata tag an agent (or its owner's treasury) attaches to a top-up. */
 export const TOPUP_MEMO_PREFIX = "hush:topup:v1:agent=";
