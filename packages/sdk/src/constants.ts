@@ -89,6 +89,21 @@ export const TRANSFER_SIGNALS = {
   auditorPct: [25, 32],
 } as const;
 
+// ─── v2: mock stocks ───
+
+/** Tickers of the mock stocks (mNVDA, mTSLA, mSPY) quoted by MockStockOracle. Testnet mocks, no issuer affiliation. */
+export const STOCK_TICKERS = ["NVDA", "TSLA", "SPY"] as const;
+export type StockTicker = (typeof STOCK_TICKERS)[number];
+/** Mock stock tokens use 18 decimals, like issuer stock tokens. */
+export const STOCK_DECIMALS = 18;
+/** MockStockOracle prices: USDC atomic units (6 dp) per whole share. */
+export const ORACLE_PRICE_DECIMALS = 6;
+/**
+ * Position/size unit: 0.01 share. eERC (2 decimals) can't represent less, so quoting, custody and settle-out all use
+ * whole centishares and a settle-out never leaves dust. 1 centishare = 10^16 token wei.
+ */
+export const CENTISHARE = 10n ** 16n;
+
 /** Encrypted-metadata tag an agent (or its owner's treasury) attaches to a top-up. */
 export const TOPUP_MEMO_PREFIX = "hush:topup:v1:agent=";
 export const REFUND_MEMO = "hush:refund:v1";

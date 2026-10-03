@@ -137,14 +137,17 @@ export class EercAccount {
     return [x, y];
   }
 
-  /** Reads the on-chain ciphertext and decrypts it locally. */
-  async balance(address: Address = this.address): Promise<EncryptedBalance> {
+  /**
+   * Reads the on-chain ciphertext and decrypts it locally. `token` = which wrapped ERC-20 (default USDC); the
+   * converter keeps a separate encrypted balance per token.
+   */
+  async balance(address: Address = this.address, token: Address = this.contracts.usdc): Promise<EncryptedBalance> {
     await this.init();
     const [eGCT, , amountPCTs, balancePCT] = (await this.publicClient.readContract({
       address: this.contracts.encryptedErc,
       abi: encryptedErcAbi,
       functionName: "getBalanceFromTokenAddress",
-      args: [address, this.contracts.usdc],
+      args: [address, token],
     })) as unknown as RawBalance;
     const decrypted = this.eerc.calculateTotalBalance(
       eGCT,
@@ -155,52 +158,57 @@ export class EercAccount {
     return { encrypted: [eGCT.c1.x, eGCT.c1.y, eGCT.c2.x, eGCT.c2.y], decrypted, pendingIncoming: amountPCTs.length };
   }
 
-  /** ERC-20 → encrypted hUSDC. `atomic` is in USDC units (6 dp). The deposit amount itself is public. */
-  deposit(atomic: bigint, memo?: string): Promise<Hex> {
+  /**
+   * ERC-20 → encrypted balance. `atomic` is in the token's own units (USDC 6 dp by default; 18 dp for mock stocks,
+   * where the converter keeps 0.01-share precision and returns the dust). Amount and token are public.
+   */
+  deposit(atomic: bigint, memo?: string, token: Address = this.contracts.usdc): Promise<Hex> {
     return this.serialize(async () => {
       await this.init();
       const allowance = await this.publicClient.readContract({
-        address: this.contracts.usdc,
+        address: token,
         abi: erc20Abi,
         functionName: "allowance",
         args: [this.address, this.contracts.encryptedErc],
       });
       if (allowance < atomic) {
         const approveHash = await this.walletClient.writeContract({
-          address: this.contracts.usdc,
+          address: token,
           abi: erc20Abi,
           functionName: "approve",
           args: [this.contracts.encryptedErc, atomic],
         });
         await this.waitOk(approveHash, "approve");
       }
-      const { transactionHash } = await this.eerc.deposit(atomic, this.contracts.usdc, BigInt(this.contracts.eercDecimals), memo);
+      // The SDK reads the token's decimals() and scales the amount PCT to the eERC's 2 decimals itself.
+      const { transactionHash } = await this.eerc.deposit(atomic, token, BigInt(this.contracts.eercDecimals), memo);
       await this.waitOk(transactionHash, "eERC deposit");
       return transactionHash;
     });
   }
 
   /**
-   * Private transfer of `units` eERC units (0.01 hUSDC each with 2 decimals). Generates a Groth16 transfer proof
-   * client-side (~5 s in Node). `memo` is sent as eERC encrypted metadata, readable only by the receiver.
+   * Private transfer of `units` eERC units (0.01 hUSDC — or 0.01 share of a stock — each with 2 decimals). Generates
+   * a Groth16 transfer proof client-side (~5 s in Node). `memo` is sent as eERC encrypted metadata, readable only by
+   * the receiver. The amount is hidden; `to` and the token (tokenId in calldata) are public.
    */
-  transfer(to: Address, units: bigint, memo?: string): Promise<{ txHash: Hex; blockNumber: bigint }> {
+  transfer(to: Address, units: bigint, memo?: string, token: Address = this.contracts.usdc): Promise<{ txHash: Hex; blockNumber: bigint }> {
     return this.serialize(async () => {
-      const bal = await this.balance();
+      const bal = await this.balance(this.address, token);
       if (bal.decrypted < units) throw new Error(`insufficient private balance: have ${bal.decrypted}, need ${units} eERC units`);
       const auditorPK = await this.auditorPublicKey();
-      const { transactionHash } = await this.eerc.transfer(to, units, bal.encrypted, bal.decrypted, auditorPK, this.contracts.usdc, memo);
+      const { transactionHash } = await this.eerc.transfer(to, units, bal.encrypted, bal.decrypted, auditorPK, token, memo);
       const receipt = await this.waitOk(transactionHash, "eERC private transfer");
       return { txHash: transactionHash, blockNumber: receipt.blockNumber };
     });
   }
 
-  /** Encrypted hUSDC → ERC-20 (public amount). */
-  withdraw(units: bigint): Promise<Hex> {
+  /** Encrypted balance → ERC-20 (public amount). */
+  withdraw(units: bigint, token: Address = this.contracts.usdc): Promise<Hex> {
     return this.serialize(async () => {
-      const bal = await this.balance();
+      const bal = await this.balance(this.address, token);
       const auditorPK = await this.auditorPublicKey();
-      const { transactionHash } = await this.eerc.withdraw(units, bal.encrypted, bal.decrypted, auditorPK, this.contracts.usdc);
+      const { transactionHash } = await this.eerc.withdraw(units, bal.encrypted, bal.decrypted, auditorPK, token);
       await this.waitOk(transactionHash, "eERC withdraw");
       return transactionHash;
     });
@@ -299,9 +307,9 @@ export class EercAccount {
   }
 
   /** Sender side (owner reveal): the official SDK diff of historical balances around the transaction. */
-  async decryptOutgoing(txHash: Hex): Promise<bigint> {
+  async decryptOutgoing(txHash: Hex, token: Address = this.contracts.usdc): Promise<bigint> {
     await this.init();
-    const [event] = await this.eerc.decryptTransaction(txHash, this.contracts.usdc);
+    const [event] = await this.eerc.decryptTransaction(txHash, token);
     if (!event?.decryptedAmount) throw new Error(event?.decryptError ?? `could not decrypt ${txHash}`);
     return BigInt(event.decryptedAmount);
   }

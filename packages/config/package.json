@@ -9,6 +9,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./base": {
+      "types": "./src/base.ts",
+      "default": "./src/base.ts"
     }
   },
   "scripts": {

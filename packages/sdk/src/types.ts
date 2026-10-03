@@ -1,4 +1,5 @@
 import type { Address, Hex } from "viem";
+import type { StockTicker } from "./constants.js";
 
 /** Addresses of one Hush deployment (eERC converter stack + Hush contracts). */
 export interface HushContracts {
@@ -13,6 +14,10 @@ export interface HushContracts {
   usdc: Address;
   hushRegistry: Address;
   hushLedger: Address;
+  /** v2: MockStockOracle (absent on deployments without the stock contracts). */
+  stockOracle?: Address;
+  /** v2: mock stock token per ticker. The same eERC converter wraps them (tokenIds assigned on first deposit). */
+  stocks?: Partial<Record<StockTicker, Address>>;
 }
 
 /**
