@@ -152,7 +152,7 @@ Pages: `/` 4-chapter R3F scroll scene (THE LEAK → THE VEIL → HOW IT WORKS �
   get rejected (separate voucher stores); the next call recovers.
   Atlas/Veil (`apps/agent`), sealed telemetry (`seal`/`unseal`: Poseidon-ECDH key wrap to owner+auditor eERC keys +
   AES-GCM), `pnpm reveal veil --as owner|auditor`, `pnpm treasury status|allocate|fund-credit|deposit`,
-  `@hush/mcp` (7 tools; `pnpm mcp:smoke:local`; Claude Desktop config in `packages/mcp/README.md`).
+  `@hush/mcp` (7 tools in P4, 13 since V5; `pnpm mcp:smoke:local`; Claude Desktop config in `packages/mcp/README.md`).
 
 ### Local dev loop
 `pnpm node` (terminal 1) → `pnpm fund:local && pnpm deploy:local && pnpm bootstrap:local` →
@@ -264,4 +264,26 @@ stay unchanged. Commit + push after each phase.
     nobody passes yet it keeps the first listed provider whose proof doesn't fail. Atlas (`claims`) takes the best
     advertised win rate → AlphaKing. Bought calls are signature-checked and kept in telemetry as evidence.
   - Bootstrap step 8: AlphaKing eERC key + HushRegistry listing ("AlphaKing Signals", exact-only at runtime).
-- Next: V5 MCP + telemetry + auditor CSV · V6 web panels · V7 docs, e2e, demo script
+- V5 ✅ (2026-10-17) — MCP trading tools, sealed trade evidence, auditor CSV. SDK 69 tests; `pnpm mcp:smoke:local`
+  runs the v2 tools when a desk is up (needs provider + facilitator + price-bot + desk).
+  - **MCP** (13 tools): `hush_quote`, `hush_trade` (limitPrice; TradePolicy from `HUSH_MAX_TRADE_USD` /
+    `HUSH_MAX_POSITION_SHARES` / `HUSH_DAILY_TRADE_CAP_USD`, allowedDesks = registry providers), `hush_positions`
+    (marked at the oracle, plus `verifyPositions`), `hush_settle`, `hush_verify_provider` (`checkProvider`),
+    `hush_prove_me`.
+  - **Trade reports** (`packages/sdk/src/tradeReport.ts`, viem-only, also in `@hush/x402/contracts`):
+    `buildTradeReport` / `verifyTradeReport`. A report holds desk-signed fills + statements, agent-signed settle-outs,
+    and per fill its quote, its voucher (requestHash = quote digest) and the voucher's HushLedger inclusion proof.
+    - *Completeness:* desk statement seq is gapless per agent (`lastSeq + 1`). Each seq must be explained by one fill
+      (closest within 5 s of the statement), settle-out or reversal. A dropped round trip leaves gaps or unexplained
+      seqs.
+    - *P&L:* replays the desk's average-cost arithmetic and must reproduce its last statement.
+    - *Trust:* trusts the desk (counterparty). This replaces the per-epoch fill-chain commit for agents.
+    - `StoredFill.quote` was added in V5; older fills verify without the voucher link.
+  - **Telemetry:** Veil's `trade` events carry the desk-signed fill; a new `position` event carries the signed
+    statement. `pnpm reveal veil --as owner|auditor` checks both signatures (✔ desk-signed).
+  - **Operator:** `GET /audit/transfers` (JSON) and `GET /audit/export.csv` list every eERC deposit, transfer and
+    withdrawal, with amounts decrypted by the auditor key and role names.
+    - The index (`apps/operator/.data/audit-<net><tag>.json`) stores auditor PCTs only, never plaintext. It scans
+      2000-block chunks from the eERC deploy block, in the background at startup.
+    - A transfer's tokenId needs one tx read.
+- Next: V6 web panels · V7 docs, e2e, demo script

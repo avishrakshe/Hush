@@ -1,6 +1,10 @@
 # Hush v2 — V0 audit & plan (2026-10-03)
 
-> **Status:** V0 ✅ · V1 ✅ · V2 ✅ (desk e2e 14/14 locally and on Fuji) · V3 ✅ · V4 ✅ (alpha e2e 9/9 locally).
+> **Status:** V0 ✅ · V1 ✅ · V2 ✅ (desk e2e 14/14 locally and on Fuji) · V3 ✅ · V4 ✅ (alpha e2e 9/9 locally) ·
+> V5 ✅ (MCP trading/proof tools, sealed trade evidence, auditor CSV). V5 replaced the fill-chain commitment for "Veil's
+> own trading proof" with **trade reports** (`tradeReport.ts`). Desk statements carry a gapless per-agent seq, and each
+> fill's voucher sits in a HushLedger root. Together these give completeness and time anchoring with no extra
+> per-epoch commits.
 > Built as planned. Differences from the original prompt: sells use `GET /quote` + `POST /sell` (D4);
 > `POST /settle-out` replaces `/settle` (D5); position reads (`GET /positions/:agent`) reuse the signed credit-query
 > header; V4 adds a `COMMITTER` role for chain-head commits. Veil's own trading proof (fill chain) is still open.

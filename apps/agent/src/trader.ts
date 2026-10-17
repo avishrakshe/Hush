@@ -198,7 +198,20 @@ export async function runTrader(ctx: AgentContext) {
         footprint: t.footprint,
         reference: t.reference,
         ms: t.ms,
+        // Veil: the desk-signed records themselves (sealed like every Veil event), checkable by the owner/auditor.
+        ...(t.evidence && { fill: { record: t.evidence.fill.fill, signature: t.evidence.fill.signature, voucherLeaf: t.evidence.fill.voucherLeaf } }),
       });
+      if (t.evidence) {
+        const s = t.evidence.statement.statement;
+        await telemetry.publish("position", {
+          ticker,
+          shares: formatShares(BigInt(s.position)),
+          avgCost: BigInt(s.position) === 0n ? null : formatPrice(BigInt(s.avgCost)),
+          seq: s.seq,
+          desk: s.desk,
+          statement: { record: s, signature: t.evidence.statement.signature },
+        });
+      }
       log(`${side} ${formatShares(t.size)} ${ticker} @ $${formatPrice(t.price)} in ${t.ms} ms · ${t.footprint}${profile.mode === "public" ? `  ${txLink(t.reference)}` : ""}`);
       return { ok: true, side, shares: formatShares(t.size), priceUsd: formatPrice(t.price), notionalUsd: fmtUsd(t.notional), footprint: t.footprint };
     } catch (err) {

@@ -4,6 +4,7 @@ import type {
   FillReceiptJson,
   HushCreditExtra,
   PositionStatementJson,
+  QuoteJson,
   SettleOutRequestJson,
   VoucherJson,
 } from "../types.js";
@@ -64,6 +65,8 @@ export interface StoredFill {
   notional: string;
   /** The voucher that paid (buy) or ordered (sell) it. */
   voucherLeaf: Hex | null;
+  /** The quote it executed — links the fill to that voucher (requestHash = quote digest) in a trade report. */
+  quote?: QuoteJson;
   createdAt: number;
 }
 

@@ -268,7 +268,7 @@ export class HushRfqClient implements SchemeNetworkClient {
 
 async function recordFill(store: HushStore, desk: Address, quote: Quote, fill: SignedFillJson, statement: SignedStatementJson, voucherLeaf: Hex | null) {
   const now = Date.now();
-  await store.addFill({ desk, fill: fill.fill, signature: fill.signature, notional: quote.notional.toString(), voucherLeaf, createdAt: now });
+  await store.addFill({ desk, fill: fill.fill, signature: fill.signature, notional: quote.notional.toString(), voucherLeaf, quote: quoteToJson(quote), createdAt: now });
   await store.addStatement({ desk, statement: statement.statement, signature: statement.signature, createdAt: now });
 }
 

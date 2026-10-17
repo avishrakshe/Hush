@@ -44,5 +44,7 @@ export {
   type ProofReport,
   type VerifyOptions,
 } from "./proofOfAlpha.js";
+// So are trade reports (an agent's desk-signed record, checked against HushLedger).
+export { verifyTradeReport, type TradeReport, type TradeReportFill, type TradeReportResult, type TickerSummary } from "./tradeReport.js";
 export { DIRECTION } from "./constants.js";
 export type { SignalRecord, SignalRecordJson } from "./types.js";

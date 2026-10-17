@@ -5,7 +5,9 @@
  *   pnpm --filter @hush/agent reveal veil [--as owner|auditor] [--seconds 5] [--local]
  */
 import { type Role, loadContracts, wallet } from "@hush/config";
-import { type Sealed, isRecipient, unseal } from "@hush/x402";
+import { type Sealed, alphaDomain, fillFromJson, fillTyped, isRecipient, statementFromJson, statementTyped, unseal } from "@hush/x402";
+import type { FillReceiptJson, PositionStatementJson } from "@hush/x402";
+import type { Hex } from "viem";
 import { PROFILES } from "./profiles.js";
 
 const args = process.argv.slice(2);
@@ -19,8 +21,19 @@ if (!profile) throw new Error("usage: reveal atlas|veil [--as owner|auditor]");
 const as = (opt("as") ?? "owner").toUpperCase() as Role;
 const seconds = Number(opt("seconds") ?? 5);
 
-const viewer = wallet(as).eerc(loadContracts());
+const contracts = loadContracts();
+const viewer = wallet(as).eerc(contracts);
 await viewer.init(); // derives the viewer's eERC key from its wallet signature — nothing leaves this machine
+
+/** Sealed trade/position events carry the desk-signed records: check them instead of trusting the agent's word. */
+async function evidence(payload: { fill?: { record: FillReceiptJson; signature: Hex }; statement?: { record: PositionStatementJson; signature: Hex } }) {
+  if (!contracts.hushAlpha || (!payload.fill && !payload.statement)) return "";
+  const domain = alphaDomain(contracts.chainId, contracts.hushAlpha);
+  const ok = payload.fill
+    ? await fillTyped.isValid(domain, fillFromJson(payload.fill.record), payload.fill.signature)
+    : await statementTyped.isValid(domain, statementFromJson(payload.statement!.record), payload.statement!.signature);
+  return ok ? "  ✔ desk-signed" : "  ✗ desk signature INVALID";
+}
 
 const res = await fetch(`http://localhost:${profile.port}/events`);
 if (!res.body) throw new Error(`agent ${profile.name} is not running on :${profile.port}`);
@@ -49,8 +62,8 @@ while (Date.now() < stopAt) {
     } else if (!isRecipient(viewer, event.sealed)) {
       console.log(`${time} #${event.id} 🔒 sealed (${event.sealed.ciphertext.slice(0, 18)}…) — not addressed to ${as.toLowerCase()}`);
     } else {
-      const { type, data: payload } = JSON.parse(await unseal(viewer, event.sealed)) as { type: string; data: unknown };
-      console.log(`${time} #${event.id} 🔓 ${type} ${JSON.stringify(payload)}`);
+      const { type, data: payload } = JSON.parse(await unseal(viewer, event.sealed)) as { type: string; data: Parameters<typeof evidence>[0] };
+      console.log(`${time} #${event.id} 🔓 ${type} ${JSON.stringify(payload)}${await evidence(payload)}`);
     }
     shown++;
   }

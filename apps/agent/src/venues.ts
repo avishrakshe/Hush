@@ -1,6 +1,6 @@
 import { publicClient } from "@hush/config";
 import { CENTISHARE, type EercAccount, type HushContracts, eercToAtomic, formatShares, formatUsdc, mockStockAbi, mockUsdcAbi } from "@hush/x402";
-import type { HushDeskClient, HushPublicDesk, HushStore } from "@hush/x402/client";
+import type { HushDeskClient, HushPublicDesk, HushStore, StoredFill, StoredStatement } from "@hush/x402/client";
 import type { Address } from "viem";
 
 /** One executed trade, as the agent reports it. Sizes in 0.01-share units, money in USDC atomic. */
@@ -14,6 +14,8 @@ export interface VenueTrade {
   /** Atlas: the public payment / payout tx. Veil: the voucher leaf (off-chain, committed later in a Merkle root). */
   reference: string;
   ms: number;
+  /** Veil: the desk-signed fill and position statement — sealed into telemetry so the owner/auditor can check them. */
+  evidence?: { fill: StoredFill; statement: StoredStatement };
 }
 
 /** Where an agent trades. Atlas and Veil run the same strategy; only this differs. */
@@ -124,7 +126,11 @@ export class PrivateVenue implements Venue {
     const toppedUp = (await this.store.listReceipts()).length > topUpsBefore;
     this.cached = { size: r.statement.position, avgCost: r.statement.position === 0n ? null : r.statement.avgCost };
     const notional = (r.fill.size * r.fill.price) / 100n;
+    // The SDK verified and stored both records; hand the signed copies on.
+    const fill = (await this.store.listFills()).findLast((f) => f.fill.quoteId === r.fill.quoteId);
+    const statement = (await this.store.listStatements()).findLast((s) => BigInt(s.statement.seq) === r.statement.seq);
     return {
+      ...(fill && statement && { evidence: { fill, statement } }),
       side,
       size: r.fill.size,
       price: r.fill.price,

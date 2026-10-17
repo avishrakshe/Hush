@@ -3,7 +3,8 @@
  *
  *   Owner:    reveal an agent's sealed telemetry · credit (owner-signed query) · voucher & receipt audit · treasury ·
  *             kill switch · decrypt the agent's transfers with the agent's eERC key
- *   Auditor:  reveal sealed telemetry · decrypt any eERC transfer amount (auditor PCT)
+ *   Auditor:  reveal sealed telemetry · decrypt any eERC transfer amount (auditor PCT) · CSV export of every eERC
+ *             deposit / transfer / withdrawal with decrypted amounts (GET /audit/export.csv)
  *   Provider: facilitator admin overview, live admin events, commit-now (holds PROVIDER_ADMIN_TOKEN)
  *
  * It holds the demo's owner, auditor and provider-admin credentials so the browser never does. Loopback only; the
@@ -12,7 +13,7 @@
  *
  *   pnpm operator          (Fuji)   ·   pnpm operator:local
  */
-import { NETWORK, type Role, URLS, loadContracts, publicClient, stateTag, wallet } from "@hush/config";
+import { NETWORK, ROLES, type Role, URLS, loadContracts, publicClient, signer, stateTag, txLink, wallet } from "@hush/config";
 import {
   type EercAccount,
   type Sealed,
@@ -38,6 +39,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Address, type Hex, isAddressEqual, isHash } from "viem";
+import { AuditIndex, toCsv } from "./audit.js";
 import { followSse, toJson } from "./sse.js";
 
 const PORT = Number(process.env.OPERATOR_PORT || 4040);
@@ -416,6 +418,45 @@ app.get(
   }),
 );
 
+// ─── auditor export ──────────────────────────────────────────────────────────
+const audit = new AuditIndex({
+  file: fileURLToPath(new URL(`../.data/audit-${NETWORK}${STATE_TAG}.json`, import.meta.url)),
+  publicClient: publicClient as never,
+  contracts,
+  log,
+});
+/** Readable names for the demo's own addresses (roles whose keys are in .env). */
+const names = new Map<string, string>([[contracts.encryptedErc.toLowerCase(), "EncryptedERC"]]);
+for (const role of ROLES) {
+  try {
+    names.set(signer(role).address.toLowerCase(), role);
+  } catch {
+    // role key not configured here
+  }
+}
+
+/** Every eERC deposit / transfer / withdrawal, amounts decrypted with the auditor key (JSON). */
+app.get(
+  "/audit/transfers",
+  wrap(async (_req, res) => {
+    const entries = await audit.entries(await viewer("auditor"));
+    send(res, { auditor: auditor.address, scannedTo: audit.scannedTo.toString(), count: entries.length, entries: entries.reverse() });
+  }),
+);
+
+/** Same, as a CSV download for the auditor's records. */
+app.get(
+  "/audit/export.csv",
+  wrap(async (_req, res) => {
+    const entries = await audit.entries(await viewer("auditor"));
+    res
+      .status(200)
+      .type("text/csv")
+      .setHeader("content-disposition", `attachment; filename="hush-eerc-audit-${NETWORK}-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(toCsv(entries, names, txLink));
+  }),
+);
+
 // ─── provider console: facilitator admin API behind the token ─────────────────
 const admin = (p: string, init?: RequestInit) => {
   if (!ADMIN_TOKEN) throw new OperatorError(503, "PROVIDER_ADMIN_TOKEN is not set in .env");
@@ -461,4 +502,6 @@ app.listen(PORT, "127.0.0.1", () => {
   log(`  auditor  ${auditor.address}`);
   log(`  origins  ${ORIGINS.join(", ")}`);
   if (!ADMIN_TOKEN) log("  PROVIDER_ADMIN_TOKEN not set — provider console disabled");
+  // Build the audit index in the background (the first Fuji scan walks every block since the eERC deployment).
+  audit.sync().catch((err: Error) => log(`audit index: ${err.message.split("\n")[0]}`));
 });
