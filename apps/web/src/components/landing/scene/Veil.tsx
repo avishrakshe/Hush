@@ -92,9 +92,9 @@ export function Veil() {
     const material = new THREE.ShaderMaterial({
       uniforms: {
         ...shared,
-        uCyan: { value: COLORS.cyan },
-        uViolet: { value: COLORS.violet },
-        uPink: { value: COLORS.pink },
+        uCyan: { value: COLORS.gold },
+        uViolet: { value: COLORS.seal },
+        uPink: { value: COLORS.leak },
         uGlyphs: { value: texture },
       },
       vertexShader,

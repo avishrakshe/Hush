@@ -46,29 +46,29 @@ export function leakItems(agent: AgentId, rows: ChainRow[]): LeakItem[] {
   return [
     { label: "Where it buys signals", leaked: topups.length > 0, evidence: topups.length ? "top-up receivers are public (known limitation)" : "no top-up in view" },
     { label: "What it trades", leaked: false, evidence: "trades are off-chain vouchers at the desk" },
-    { label: "When it trades", leaked: false, evidence: "only batch roots, on a fixed 2-min clock" },
+    { label: "When it trades", leaked: false, evidence: "only batch roots, on a fixed clock" },
     { label: "What it holds", leaked: false, evidence: "custodied — only desk-signed statements" },
   ];
 }
 
-export function PrivacyMeter({ items, accent }: { items: LeakItem[]; accent: "pink" | "cyan" }) {
+export function PrivacyMeter({ items, accent }: { items: LeakItem[]; accent: "leak" | "gold" }) {
   const leaked = items.filter((i) => i.leaked).length;
   const pct = Math.round((leaked / items.length) * 100);
   return (
     <div>
       <div className="flex items-baseline justify-between">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-dim">Strategy exposed to observers</p>
-        <p className={`font-display text-2xl font-semibold tabular-nums ${accent === "pink" ? "text-pink" : "text-cyan"}`}>{pct}%</p>
+        <p className={`font-display text-2xl font-semibold tabular-nums ${accent === "leak" ? "text-leak" : "text-gold"}`}>{pct}%</p>
       </div>
       <div className="mt-2 flex gap-1" aria-hidden>
         {items.map((i) => (
-          <span key={i.label} className={`h-1.5 flex-1 rounded-full transition-colors duration-700 ${i.leaked ? "bg-pink shadow-[0_0_10px_var(--pink)]" : "bg-white/[0.08]"}`} />
+          <span key={i.label} className={`h-1.5 flex-1 rounded-full transition-colors duration-700 ${i.leaked ? "bg-leak shadow-[0_0_10px_var(--leak)]" : "bg-white/[0.08]"}`} />
         ))}
       </div>
       <ul className="mt-3 space-y-1.5 text-[12.5px]">
         {items.map((i) => (
           <li key={i.label} className="grid grid-cols-[1.1rem_9.5rem_1fr] items-baseline gap-x-2">
-            <span aria-label={i.leaked ? "leaked" : "hidden"} className={i.leaked ? "text-pink" : "text-cyan"}>
+            <span aria-label={i.leaked ? "leaked" : "hidden"} className={i.leaked ? "text-leak" : "text-gold"}>
               {i.leaked ? "●" : "○"}
             </span>
             <span className="text-ink">{i.label}</span>
@@ -122,17 +122,17 @@ export function ChainList({ rows, decrypted, names, limit = 9 }: { rows: ChainRo
             </span>
             <span className="flex items-baseline gap-2">
               {r.value !== undefined ? (
-                <span className="text-pink">{usdc(r.value)} USDC</span>
+                <span className="text-leak">{usdc(r.value)} USDC</span>
               ) : r.shares !== undefined ? (
-                <span className="text-pink">
+                <span className="text-leak">
                   {shares(r.shares)} m{r.ticker}
                 </span>
               ) : kill ? null : d?.amount ? (
-                <span className="text-cyan" title={d.via}>
+                <span className="text-gold" title={d.via}>
                   {usdc(d.amount)} 🔓
                 </span>
               ) : (
-                <span className="text-violet">encrypted</span>
+                <span className="text-seal">encrypted</span>
               )}
               <Tx hash={r.txHash} label="tx" />
             </span>
@@ -155,17 +155,17 @@ export function Footprint({ rows, batches, now, agent }: { rows: ChainRow[]; bat
       <svg viewBox="0 0 100 22" preserveAspectRatio="none" className="h-10 w-full" role="img" aria-label={`${own.length} on-chain events in the last 30 minutes`}>
         <line x1="0" x2="100" y1="16" y2="16" stroke="var(--line-strong)" strokeWidth="0.3" vectorEffect="non-scaling-stroke" />
         {roots.map((r) => (
-          <rect key={r.key} x={x(r.at) - 0.15} y="7" width="0.3" height="9" fill="var(--cyan)" opacity="0.8" />
+          <rect key={r.key} x={x(r.at) - 0.15} y="7" width="0.3" height="9" fill="var(--gold)" opacity="0.8" />
         ))}
         {own.map((r) =>
           PUBLIC_PAYMENT.has(r.kind) || r.kind === "proceeds" ? (
-            <rect key={r.key} x={x(r.at) - 0.2} y="3" width="0.4" height="13" fill="var(--pink)" />
+            <rect key={r.key} x={x(r.at) - 0.2} y="3" width="0.4" height="13" fill="var(--leak)" />
           ) : PUBLIC_TRADE.has(r.kind) ? (
             <rect key={r.key} x={x(r.at) - 0.2} y="0" width="0.4" height="16" fill="var(--avax)" />
           ) : r.kind === "frozen" || r.kind === "unfrozen" ? (
             <rect key={r.key} x={x(r.at) - 0.2} y="1" width="0.4" height="15" fill="var(--ink)" />
           ) : (
-            <rect key={r.key} x={x(r.at) - 0.6} y="10" width="1.2" height="6" fill="var(--violet)" />
+            <rect key={r.key} x={x(r.at) - 0.6} y="10" width="1.2" height="6" fill="var(--seal)" />
           ),
         )}
       </svg>
@@ -174,11 +174,11 @@ export function Footprint({ rows, batches, now, agent }: { rows: ChainRow[]; bat
         <span>
           {agent === "atlas" ? (
             <>
-              <span className="text-pink">■</span> USDC payment · <span className="text-avax">■</span> stock transfer
+              <span className="text-leak">■</span> USDC payment · <span className="text-avax">■</span> stock transfer
             </>
           ) : (
             <>
-              <span className="text-violet">■</span> encrypted transfer · <span className="text-cyan">|</span> batch root
+              <span className="text-seal">■</span> encrypted transfer · <span className="text-gold">|</span> batch root
             </>
           )}
         </span>

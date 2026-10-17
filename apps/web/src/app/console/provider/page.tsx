@@ -9,11 +9,11 @@ export const metadata: Metadata = {
 
 export default function ProviderConsolePage() {
   return (
-    <>
+    <div className="backdrop relative min-h-dvh">
       <SiteHeader />
-      <main className="backdrop relative min-h-dvh">
+      <main>
         <ProviderConsole />
       </main>
-    </>
+    </div>
   );
 }

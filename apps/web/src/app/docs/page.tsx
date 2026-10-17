@@ -40,14 +40,14 @@ export default function DocsPage() {
   ];
 
   return (
-    <>
+    <div className="backdrop relative min-h-dvh">
       <SiteHeader />
-      <main className="mx-auto grid max-w-7xl gap-10 px-5 pb-32 pt-10 sm:px-8 lg:grid-cols-[13rem_1fr]">
+      <main className="mx-auto grid max-w-7xl gap-10 px-5 pb-32 pt-14 sm:px-8 lg:grid-cols-[13rem_1fr]">
         <nav aria-label="On this page" className="hidden lg:block">
-          <ul className="sticky top-24 space-y-1.5 font-mono text-[11px] uppercase tracking-[0.14em]">
+          <ul className="sticky top-28 space-y-2 text-[13.5px]">
             {TOC.map(([id, label]) => (
               <li key={id}>
-                <a href={`#${id}`} className="text-ink-faint hover:text-ink">
+                <a href={`#${id}`} className="text-ink-faint transition-colors hover:text-gold">
                   {label}
                 </a>
               </li>
@@ -57,8 +57,8 @@ export default function DocsPage() {
 
         <article className="min-w-0 max-w-3xl">
           <p className="kicker">Docs</p>
-          <h1 className="mt-3 font-display text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1] tracking-[-0.03em]">
-            Private by default. <span className="text-cyan">Provable on demand.</span>
+          <h1 className="mt-6 font-display text-[clamp(2.6rem,5.5vw,4.4rem)] leading-[0.95]">
+            Private by default. <em className="text-shine">Provable on demand.</em>
           </h1>
 
           <H2 id="overview">Overview</H2>
@@ -237,7 +237,7 @@ import { checkProvider, verifyTradeReport } from "@hush/x402/contracts";`}</Pre>
                     <tr key={name} className="border-t border-line align-top">
                       <td className="py-2 pr-4 font-medium text-ink">{name}</td>
                       <td className="py-2 pr-4 font-mono text-[11px]">
-                        <a href={addressUrl(address!)} target="_blank" rel="noreferrer" className="text-cyan underline decoration-line-strong underline-offset-2">
+                        <a href={addressUrl(address!)} target="_blank" rel="noreferrer" className="text-gold underline decoration-line-strong underline-offset-2">
                           {address}
                         </a>
                       </td>
@@ -294,13 +294,13 @@ import { checkProvider, verifyTradeReport } from "@hush/x402/contracts";`}</Pre>
           </p>
         </article>
       </main>
-    </>
+    </div>
   );
 }
 
 function H2({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <h2 id={id} className="mt-14 scroll-mt-24 border-t border-line pt-8 font-display text-2xl font-semibold tracking-tight">
+    <h2 id={id} className="mt-16 scroll-mt-28 border-t border-line pt-10 font-display text-[2.4rem] leading-none">
       {children}
     </h2>
   );
@@ -309,7 +309,7 @@ const P = ({ children }: { children: ReactNode }) => <p className="mt-4 text-[15
 const B = ({ children }: { children: ReactNode }) => <strong className="font-semibold text-ink">{children}</strong>;
 const C = ({ children }: { children: ReactNode }) => <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[0.85em] text-ink">{children}</code>;
 const Ul = ({ children }: { children: ReactNode }) => <ul className="mt-4 list-disc space-y-2 pl-5 text-[15px] leading-relaxed text-ink-dim marker:text-ink-faint">{children}</ul>;
-const Ol = ({ children }: { children: ReactNode }) => <ol className="mt-4 list-decimal space-y-2 pl-5 text-[15px] leading-relaxed text-ink-dim marker:text-violet">{children}</ol>;
+const Ol = ({ children }: { children: ReactNode }) => <ol className="mt-4 list-decimal space-y-2 pl-5 text-[15px] leading-relaxed text-ink-dim marker:text-seal">{children}</ol>;
 function Pre({ children }: { children: string }) {
   return (
     <pre className="glass mt-4 overflow-x-auto rounded-xl px-5 py-4 font-mono text-[12px] leading-relaxed text-ink-dim">

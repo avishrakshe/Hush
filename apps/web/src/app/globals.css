@@ -1,19 +1,27 @@
 @import "tailwindcss";
 
-/* Hush design tokens. AVAX red is reserved for on-chain moments (a payment or batch root landing on C-Chain). */
+/*
+ * Hush design tokens — black and gold. Semantic colours:
+ *   gold  private / hidden / verified (what Hush gives you)
+ *   seal  encrypted payloads (ciphertext, sealed telemetry)
+ *   leak  what a public chain exposes
+ *   avax  reserved for on-chain moments (a payment or batch root landing on C-Chain)
+ */
 :root {
-  --bg: #05060a;
-  --bg-2: #0a0c14;
-  --ink: #e9ecf5;
-  --ink-dim: #a0a8bc;
-  --ink-faint: #5d667b;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --glass: rgba(12, 15, 26, 0.55);
-  --glass-strong: rgba(10, 12, 22, 0.82);
-  --cyan: #22e6ff;
-  --violet: #8b5cf6;
-  --pink: #ff3da8;
+  --bg: #000000;
+  --bg-2: #0b0a07;
+  --ink: #f5f2ea;
+  --ink-dim: #a7a194;
+  --ink-faint: #676155;
+  --line: rgba(255, 231, 180, 0.08);
+  --line-strong: rgba(255, 231, 180, 0.16);
+  --glass: rgba(17, 15, 11, 0.74);
+  --glass-strong: rgba(14, 12, 9, 0.94);
+  --gold: #f6c445;
+  --gold-hi: #ffe27a;
+  --gold-deep: #c88f12;
+  --seal: #d7b56d;
+  --leak: #ff5f5a;
   --avax: #e84142;
   color-scheme: dark;
 }
@@ -26,11 +34,13 @@
   --color-ink-faint: var(--ink-faint);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
-  --color-cyan: var(--cyan);
-  --color-violet: var(--violet);
-  --color-pink: var(--pink);
+  --color-gold: var(--gold);
+  --color-gold-hi: var(--gold-hi);
+  --color-gold-deep: var(--gold-deep);
+  --color-seal: var(--seal);
+  --color-leak: var(--leak);
   --color-avax: var(--avax);
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument-serif), ui-serif, Georgia, serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", monospace;
 }
@@ -49,58 +59,174 @@
     text-rendering: optimizeLegibility;
   }
   ::selection {
-    background: color-mix(in srgb, var(--violet) 55%, transparent);
-    color: #fff;
+    background: color-mix(in srgb, var(--gold) 45%, transparent);
+    color: #000;
   }
   :focus-visible {
-    outline: 2px solid var(--cyan);
+    outline: 2px solid var(--gold);
     outline-offset: 3px;
     border-radius: 6px;
   }
 }
 
 @layer components {
-  /* Frosted panel. Blur over a live WebGL canvas re-composites every frame, so keep panels small. */
+  /* Warm dark card with a faint gold glow from the top. Blur over a live WebGL canvas re-composites every frame. */
   .glass {
-    background: var(--glass);
+    background:
+      radial-gradient(120% 70% at 50% -20%, rgba(246, 196, 69, 0.07), transparent 60%),
+      var(--glass);
     border: 1px solid var(--line);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: inset 0 1px 0 rgba(255, 231, 180, 0.05);
+    backdrop-filter: blur(14px) saturate(130%);
+    -webkit-backdrop-filter: blur(14px) saturate(130%);
   }
+
+  /* Section badge: "• THE LEAK". */
   .kicker {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.22em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.32rem 0.7rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 0.55rem;
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--ink-dim);
+    color: var(--ink);
   }
+  .kicker::before {
+    content: "";
+    width: 0.38rem;
+    height: 0.38rem;
+    border-radius: 999px;
+    background: var(--gold);
+    box-shadow: 0 0 10px var(--gold);
+  }
+
+  /* Primary call to action: a gold bar with a lit edge. */
+  .btn-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.5rem;
+    border-radius: 999px;
+    color: #160f00;
+    font-weight: 500;
+    font-size: 0.95rem;
+    background: linear-gradient(100deg, var(--gold-deep) 0%, var(--gold) 28%, var(--gold-hi) 52%, var(--gold) 74%, var(--gold-deep) 100%);
+    box-shadow:
+      0 0 0 4px rgba(246, 196, 69, 0.12),
+      0 10px 40px -10px rgba(246, 196, 69, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease;
+  }
+  .btn-gold:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 5px rgba(246, 196, 69, 0.18),
+      0 14px 50px -10px rgba(246, 196, 69, 0.7),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--ink);
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: background 160ms ease;
+  }
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
   .hairline {
     background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
     height: 1px;
   }
+
+  /* Gold text with a soft vertical sheen, for the one phrase per headline that matters. */
+  .text-shine {
+    background: linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-deep));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
-/* Static backdrop: what no-WebGL / reduced-motion visitors see, and what sits under the canvas while it loads. */
-.backdrop {
-  background:
-    radial-gradient(60% 50% at 22% 38%, rgba(34, 230, 255, 0.1), transparent 70%),
-    radial-gradient(55% 45% at 78% 30%, rgba(139, 92, 246, 0.14), transparent 70%),
-    radial-gradient(70% 40% at 50% 100%, rgba(255, 61, 168, 0.07), transparent 70%), var(--bg);
+/* Instrument Serif ships one weight: never let a utility fake a bold. (Unlayered, so it wins over utilities.) */
+.font-display {
+  font-weight: 400 !important;
+  letter-spacing: -0.015em;
 }
-/* Clip the perspective grid below, which overhangs the sides by design (no horizontal page scroll). */
+
+/*
+ * Static backdrop for every page (and under the landing canvas while it loads): black, a warm glow from the top,
+ * soft vertical light columns and a scatter of sparks.
+ */
 .backdrop {
   overflow-x: clip;
+  /* own stacking context: the light layers below sit under the content (z -1) but over this background */
+  isolation: isolate;
+  background:
+    radial-gradient(70% 45% at 50% -5%, rgba(246, 196, 69, 0.16), transparent 70%),
+    radial-gradient(40% 30% at 50% 108%, rgba(246, 196, 69, 0.1), transparent 70%),
+    var(--bg);
+}
+.backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 70vh;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 7%,
+    rgba(246, 196, 69, 0.05) 8.5%,
+    rgba(255, 214, 100, 0.09) 9.5%,
+    rgba(246, 196, 69, 0.04) 10.5%,
+    transparent 12% 19%
+  );
+  filter: blur(18px);
+  mask-image: linear-gradient(to bottom, black, transparent);
 }
 .backdrop::after {
   content: "";
   position: absolute;
-  inset: 45% -10% -10% -10%;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.55;
   background-image:
-    linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 56px 56px;
-  transform: perspective(700px) rotateX(62deg);
-  transform-origin: top center;
-  mask-image: linear-gradient(to bottom, transparent, black 30%, transparent 95%);
+    radial-gradient(1px 1px at 12% 18%, rgba(255, 236, 190, 0.7), transparent 60%),
+    radial-gradient(1px 1px at 33% 9%, rgba(255, 236, 190, 0.5), transparent 60%),
+    radial-gradient(1.5px 1.5px at 58% 22%, rgba(255, 236, 190, 0.6), transparent 60%),
+    radial-gradient(1px 1px at 77% 13%, rgba(255, 236, 190, 0.5), transparent 60%),
+    radial-gradient(1px 1px at 91% 31%, rgba(255, 236, 190, 0.4), transparent 60%),
+    radial-gradient(1px 1px at 22% 41%, rgba(255, 236, 190, 0.35), transparent 60%),
+    radial-gradient(1px 1px at 68% 47%, rgba(255, 236, 190, 0.35), transparent 60%);
+  background-size: 640px 520px;
+  mask-image: linear-gradient(to bottom, black, transparent 80%);
+}
+/* Dotted gold glow for closing calls to action. */
+.glow-dots {
+  background:
+    radial-gradient(50% 70% at 50% 100%, rgba(246, 196, 69, 0.22), transparent 70%),
+    radial-gradient(circle at center, rgba(246, 196, 69, 0.28) 0.7px, transparent 1.2px) 0 0 / 9px 9px;
+  mask-image: radial-gradient(60% 80% at 50% 100%, black, transparent 75%);
 }
 
 @keyframes line-in {
@@ -126,11 +252,24 @@
   animation: caret 1s steps(1) infinite;
 }
 
+/* FAQ disclosure: rotate the plus into a cross when open. */
+details[open] > summary .faq-plus {
+  transform: rotate(45deg);
+}
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .glass {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: var(--glass-strong);
+    background:
+      radial-gradient(120% 70% at 50% -20%, rgba(246, 196, 69, 0.07), transparent 60%),
+      var(--glass-strong);
   }
 }
 
@@ -141,5 +280,10 @@
   .line-in,
   .caret {
     animation: none;
+  }
+  .btn-gold,
+  .btn-gold:hover {
+    transition: none;
+    transform: none;
   }
 }

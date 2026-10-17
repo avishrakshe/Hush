@@ -14,7 +14,7 @@ export function describeEvent(type: string, d: Record<string, unknown> = {}): { 
     case "trade":
       return { text: `${s(d.side)} ${s(d.shares)} ${s(d.ticker)} @ $${s(d.price)} · ${s(d.footprint)}`, tone: "text-ink" };
     case "position":
-      return { text: `position ${s(d.shares)} ${s(d.ticker)}${d.avgCost ? ` avg $${s(d.avgCost)}` : ""} · statement #${s(d.seq)} desk-signed`, tone: "text-cyan" };
+      return { text: `position ${s(d.shares)} ${s(d.ticker)}${d.avgCost ? ` avg $${s(d.avgCost)}` : ""} · statement #${s(d.seq)} desk-signed`, tone: "text-gold" };
     case "decision":
       return { text: `tick ${s(d.tick)}: ${s(d.action)}${d.shares ? ` ${s(d.shares)}` : ""} — ${s(d.rationale)}`, tone: "text-ink-dim" };
     case "provider-check": {
@@ -22,14 +22,14 @@ export function describeEvent(type: string, d: Record<string, unknown> = {}): { 
       const pct = (x?: number | null) => (typeof x === "number" ? `${Math.round(x * 100)}%` : "–");
       return {
         text: `provider check (${s(d.by)}): ${ps.map((p) => `${p.name}: claims ${pct(p.claimed)}${d.by === "verify" ? `, verified ${pct(p.verified)}${p.passes ? " ✓" : ""}` : ""}`).join(" · ")}`,
-        tone: "text-violet",
+        tone: "text-seal",
       };
     }
     case "trade:failed":
     case "signal:failed":
-      return { text: `${type}: ${s(d.error)}`, tone: "text-pink" };
+      return { text: `${type}: ${s(d.error)}`, tone: "text-leak" };
     default:
-      if (type.startsWith("sdk:topup")) return { text: `${type.slice(4)} ${d.amount ? `$${(Number(d.amount) / 1e6).toFixed(2)}` : ""}`, tone: "text-violet" };
+      if (type.startsWith("sdk:topup")) return { text: `${type.slice(4)} ${d.amount ? `$${(Number(d.amount) / 1e6).toFixed(2)}` : ""}`, tone: "text-seal" };
       if (type.startsWith("sdk:voucher")) return { text: `${type.slice(4)}${d.amount ? ` $${(Number(d.amount) / 1e6).toFixed(4)}` : ""}`, tone: "text-ink-faint" };
       if (type.startsWith("sdk:payment")) return { text: `${type.slice(4)}${d.amount ? ` $${(Number(d.amount) / 1e6).toFixed(4)}` : ""}`, tone: "text-ink-faint" };
       return { text: `${type}`, tone: "text-ink-faint" };
@@ -46,7 +46,7 @@ export function TelemetryList({ rows, limit = 12, hideNoise = true }: { rows: Te
           return (
             <li key={r.id} className="line-in grid grid-cols-[4.2rem_1fr] gap-x-2">
               <span className="text-ink-faint">{clock(r.at)}</span>
-              <span className="truncate text-violet">
+              <span className="truncate text-seal">
                 🔒 sealed event{r.sealedBytes ? ` · ${r.sealedBytes}-byte ciphertext` : ""} {r.locked ? "— not addressed to you" : "— owner + auditor keys only"}
               </span>
             </li>
@@ -57,7 +57,7 @@ export function TelemetryList({ rows, limit = 12, hideNoise = true }: { rows: Te
           <li key={r.id} className="line-in grid grid-cols-[4.2rem_1fr] gap-x-2">
             <span className="text-ink-faint">{clock(r.at)}</span>
             <span className={`min-w-0 truncate ${tone}`} title={text}>
-              {r.sealed && <span className="text-cyan">🔓 </span>}
+              {r.sealed && <span className="text-gold">🔓 </span>}
               {text}
             </span>
           </li>

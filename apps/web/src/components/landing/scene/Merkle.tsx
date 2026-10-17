@@ -51,7 +51,7 @@ const nodeFragment = /* glsl */ `
     float box = 1.0 - smoothstep(0.34, 0.5, sq);
     float outline = box * smoothstep(0.24, 0.34, sq);
     float shape = mix(outline * 0.7, box, vLit);
-    vec3 col = mix(uCyan, uViolet, vLeaf) * (1.0 + vLit * 0.8); // leaves = vouchers (violet), hashes = cyan
+    vec3 col = mix(uCyan, uViolet, vLeaf) * (1.0 + vLit * 0.8); // leaves = vouchers (seal), hashes = gold
     float a = shape * uVis * (0.3 + 0.7 * vLit);
     if (a < 0.004) discard;
     gl_FragColor = vec4(col, a);
@@ -125,8 +125,8 @@ export function Merkle() {
       uLeaves: { value: 8 },
       uVis: { value: 0 },
       uPixelRatio: shared.uPixelRatio,
-      uCyan: { value: COLORS.cyan },
-      uViolet: { value: COLORS.violet },
+      uCyan: { value: COLORS.gold },
+      uViolet: { value: COLORS.seal },
     };
 
     const nodeGeo = new THREE.BufferGeometry();
@@ -194,7 +194,7 @@ export function Merkle() {
       <points geometry={nodeGeo} material={nodeMat} frustumCulled={false} />
       <mesh ref={drop} visible={false}>
         <boxGeometry args={[0.13, 0.13, 0.13]} />
-        <meshBasicMaterial color={COLORS.cyan.clone().multiplyScalar(2.2)} toneMapped={false} />
+        <meshBasicMaterial color={COLORS.gold.clone().multiplyScalar(2.2)} toneMapped={false} />
       </mesh>
     </>
   );

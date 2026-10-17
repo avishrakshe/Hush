@@ -133,8 +133,21 @@ jittered top-up timing. Persist vouchers + receipts; `verifyMyVouchers()`; `requ
 nonceManager because one process sends commits, settlements and deliveries concurrently).
 
 ## Web (apps/web)
-Dark, dimensional, editorial. Tokens: `--bg #05060A`, glass surfaces, `--cyan #22E6FF`, `--violet #8B5CF6`,
-`--pink #FF3DA8`, `--avax #E84142` only for on-chain moments. Fonts: Space Grotesk / Inter / JetBrains Mono.
+Black and gold, editorial (Goldify-inspired, 2026-10-18). The tokens are semantic:
+- `--gold #F6C445` (+ `--gold-hi`/`--gold-deep`): private / verified.
+- `--seal #D7B56D`: encrypted.
+- `--leak #FF5F5A`: public exposure.
+- `--avax #E84142`: only for on-chain moments.
+- Background `--bg #000`; warm glass cards with a gold top glow.
+
+Fonts: Instrument Serif (display, weight 400 only — `.font-display` forces it), Inter, JetBrains Mono (data).
+
+Components:
+- Floating pill `SiteHeader` (the landing passes chapter links + PUBLIC/HUSH toggle); `.kicker` = "• LABEL" badge.
+- `.btn-gold` / `.btn-ghost` pills; `.text-shine` for the gold phrase in a headline.
+- `.backdrop` = gold light columns + sparks (isolated; its layers sit at z −1); `.glow-dots` for the closing CTA.
+- The 3D scene uses the same palette (`scene/layout.ts` COLORS).
+- Landing adds an FAQ (judges' trust questions) and a closing CTA.
 Pages: `/` 4-chapter R3F scroll scene (THE LEAK → THE VEIL → HOW IT WORKS → PROOF) with PUBLIC/HUSH toggle;
 `/demo` live split screen Atlas vs Veil (real Fuji data only, owner/auditor reveal, privacy meter, kill switch);
 `/console/agent`; `/console/provider`; `/docs`. 60fps target, lazy 3D, reduced-motion/mobile/no-WebGL fallbacks.

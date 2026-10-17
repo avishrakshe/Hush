@@ -56,7 +56,7 @@ export function Mirror() {
         </mesh>
         <mesh ref={ring} rotation={[Math.PI / 2.2, 0, 0]}>
           <torusGeometry args={[0.55, 0.008, 6, 72]} />
-          <meshBasicMaterial ref={ringMat} color={COLORS.pink} transparent opacity={0.6} />
+          <meshBasicMaterial ref={ringMat} color={COLORS.leak} transparent opacity={0.6} />
         </mesh>
       </group>
       {/* tip at the eye, base on the tape, so rotating the mesh sweeps the beam around the eye */}

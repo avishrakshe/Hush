@@ -56,8 +56,8 @@ export function AgentConsole() {
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-10 sm:px-8">
       <p className="kicker">Agent console · owner & auditor</p>
-      <h1 className="mt-3 font-display text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1] tracking-[-0.03em]">
-        Private to the world. <span className="text-cyan">Transparent to you.</span>
+      <h1 className="mt-6 font-display text-[clamp(2.6rem,5.5vw,4.4rem)] leading-[0.95]">
+        Private to the world. <span className="text-gold">Transparent to you.</span>
       </h1>
       <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-dim">
         The owner&apos;s keys open everything the agent did — its sealed log, its credit, its signed vouchers and receipts,
@@ -68,20 +68,20 @@ export function AgentConsole() {
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">Agent</span>
         {(["veil", "atlas"] as const).map((a) => (
-          <Button key={a} pressed={agent === a} tone={a === "veil" ? "cyan" : "pink"} onClick={() => setAgent(a)}>
+          <Button key={a} pressed={agent === a} tone={a === "veil" ? "gold" : "leak"} onClick={() => setAgent(a)}>
             {AGENT_META[a].name}
           </Button>
         ))}
         <span className="ml-4 font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">As</span>
         {(["owner", "auditor"] as const).map((v) => (
-          <Button key={v} pressed={viewer === v} tone={v === "owner" ? "cyan" : "violet"} onClick={() => setViewer(v)}>
+          <Button key={v} pressed={viewer === v} tone={v === "owner" ? "gold" : "seal"} onClick={() => setViewer(v)}>
             {v}
           </Button>
         ))}
       </div>
 
       {!up ? (
-        <p className="glass mt-6 rounded-2xl px-5 py-4 font-mono text-[12px] text-ink-dim">
+        <p className="glass mt-6 rounded-[22px] px-5 py-4 font-mono text-[12px] text-ink-dim">
           The operator is offline. Start the demo stack (`pnpm demo`, or `pnpm operator`) — it holds the owner and auditor keys
           on this machine so the browser never does.
         </p>
@@ -121,7 +121,7 @@ function StatusPanel({ agent, stack }: { agent: AgentId; stack: ReturnType<typeo
         <dt className="text-ink-faint">Registered</dt>
         <dd>{s ? (s.registered ? `yes${s.ownedByOperator ? ", owned by you" : ""}` : "no") : "…"}</dd>
         <dt className="text-ink-faint">Status</dt>
-        <dd className={s?.frozen ? "text-avax" : "text-cyan"}>{s ? (s.frozen ? "frozen — every facilitator rejects it" : "active") : "…"}</dd>
+        <dd className={s?.frozen ? "text-avax" : "text-gold"}>{s ? (s.frozen ? "frozen — every facilitator rejects it" : "active") : "…"}</dd>
         <dt className="text-ink-faint">Position</dt>
         <dd className="font-mono text-[11.5px]">{st?.state?.position ? `${st.state.position.shares} ${st.state.ticker} @ $${st.state.position.avgCostUsd ?? "–"}` : "—"}</dd>
       </dl>
@@ -135,7 +135,7 @@ function StatusPanel({ agent, stack }: { agent: AgentId; stack: ReturnType<typeo
             {kill.busy ? "…" : "Freeze agent"}
           </Button>
         )}
-        {kill.error && <span className="font-mono text-[10.5px] text-pink">{kill.error}</span>}
+        {kill.error && <span className="font-mono text-[10.5px] text-leak">{kill.error}</span>}
       </div>
     </Panel>
   );
@@ -150,7 +150,7 @@ function CreditPanel({ agent }: { agent: AgentId }) {
       ) : (
         <dl className="grid grid-cols-[7rem_1fr] gap-y-1.5 font-mono text-[12px]">
           <dt className="font-sans text-ink-faint">Available</dt>
-          <dd className="text-cyan">${usdc(credit.available, 4)}</dd>
+          <dd className="text-gold">${usdc(credit.available, 4)}</dd>
           <dt className="font-sans text-ink-faint">Credited</dt>
           <dd>${usdc(credit.creditedTotal)}</dd>
           <dt className="font-sans text-ink-faint">Spent</dt>
@@ -178,7 +178,7 @@ function TreasuryPanel() {
             <Addr address={t.owner} />
           </dd>
           <dt className="font-sans text-ink-faint">Private hUSDC</dt>
-          <dd className="text-cyan">${usdc(t.privateHusdc)}</dd>
+          <dd className="text-gold">${usdc(t.privateHusdc)}</dd>
           <dt className="font-sans text-ink-faint">Public USDC</dt>
           <dd>${usdc(t.publicUsdc)}</dd>
           <dt className="font-sans text-ink-faint">Agents</dt>
@@ -235,12 +235,12 @@ function TradeReportPanel({ agent }: { agent: AgentId }) {
         on HushLedger. The desk numbers statements, so a hidden losing trade shows. Share the file with whoever you choose.
       </p>
       <div className="mt-3 flex gap-3">
-        <Button tone="cyan" disabled={state.busy} onClick={() => void run()}>
+        <Button tone="gold" disabled={state.busy} onClick={() => void run()}>
           {state.busy ? "verifying…" : "Build & verify"}
         </Button>
         {state.report && <Button onClick={download}>Download report</Button>}
       </div>
-      {state.error && <p className="mt-3 font-mono text-[11px] text-pink">{state.error}</p>}
+      {state.error && <p className="mt-3 font-mono text-[11px] text-leak">{state.error}</p>}
       {r && (
         <div className="mt-4">
           <div className="flex flex-wrap gap-2 font-mono text-[10.5px] uppercase tracking-[0.14em]">
@@ -250,7 +250,7 @@ function TradeReportPanel({ agent }: { agent: AgentId }) {
               {r.committedOnChain}/{r.fills} anchored on-chain
             </Badge>
           </div>
-          {(r.reason || r.incompleteBecause) && <p className="mt-2 font-mono text-[11px] text-pink">{r.reason ?? r.incompleteBecause}</p>}
+          {(r.reason || r.incompleteBecause) && <p className="mt-2 font-mono text-[11px] text-leak">{r.reason ?? r.incompleteBecause}</p>}
           <dl className="mt-3 grid grid-cols-[8rem_1fr] gap-y-1 font-mono text-[11.5px]">
             <dt className="font-sans text-ink-faint">Trades</dt>
             <dd>
@@ -261,7 +261,7 @@ function TradeReportPanel({ agent }: { agent: AgentId }) {
               {dollars(r.boughtNotional)} · {dollars(r.soldNotional)}
             </dd>
             <dt className="font-sans text-ink-faint">Realized P&L</dt>
-            <dd className={BigInt(r.realizedPnl) < 0n ? "text-pink" : "text-cyan"}>{dollars(r.realizedPnl)}</dd>
+            <dd className={BigInt(r.realizedPnl) < 0n ? "text-leak" : "text-gold"}>{dollars(r.realizedPnl)}</dd>
             <dt className="font-sans text-ink-faint">Unrealized</dt>
             <dd>{r.unrealizedPnl === null ? "—" : dollars(r.unrealizedPnl)}</dd>
           </dl>
@@ -282,7 +282,7 @@ function TradeReportPanel({ agent }: { agent: AgentId }) {
 }
 
 function Badge({ ok, children }: { ok: boolean; children: React.ReactNode }) {
-  return <span className={`rounded-full px-2.5 py-1 ${ok ? "bg-cyan/10 text-cyan" : "bg-avax/15 text-avax"}`}>{children}</span>;
+  return <span className={`rounded-full px-2.5 py-1 ${ok ? "bg-gold/10 text-gold" : "bg-avax/15 text-avax"}`}>{children}</span>;
 }
 
 function LedgerPanel({ agent }: { agent: AgentId }) {
@@ -305,7 +305,7 @@ function LedgerPanel({ agent }: { agent: AgentId }) {
   return (
     <Panel title="The agent's own ledger · vouchers and receipts" aside={ledger ? `${ledger.totals.vouchers} vouchers · ${ledger.totals.receipts} top-ups` : ""}>
       <div className="flex flex-wrap items-center gap-3">
-        <Button tone="cyan" disabled={verify.busy} onClick={() => void run()}>
+        <Button tone="gold" disabled={verify.busy} onClick={() => void run()}>
           {verify.busy ? "checking…" : "Verify against HushLedger"}
         </Button>
         {verify.text && <span className="font-mono text-[11px] text-ink-dim">{verify.text}</span>}
@@ -322,7 +322,7 @@ function LedgerPanel({ agent }: { agent: AgentId }) {
                 <span className="truncate text-ink-dim" title={v.resource}>
                   {v.resource.startsWith("hush-rfq") ? `desk ${v.resource.includes(":sell:") ? "sell order" : "buy"}` : v.resource.replace(/^https?:\/\/[^/]+/, "")}
                 </span>
-                <span className={v.inclusionFailed ? "text-avax" : v.verifiedOnChain ? "text-cyan" : "text-ink-faint"}>
+                <span className={v.inclusionFailed ? "text-avax" : v.verifiedOnChain ? "text-gold" : "text-ink-faint"}>
                   {v.inclusionFailed ? "✗ not in root" : v.verifiedOnChain ? "✓ in root" : v.status}
                 </span>
               </li>
@@ -333,7 +333,7 @@ function LedgerPanel({ agent }: { agent: AgentId }) {
               <li key={r.receipt.topupTxHash} className="grid grid-cols-[4.2rem_1fr_auto] gap-x-2">
                 <span className="text-ink-faint">{clock(r.createdAt)}</span>
                 <span>
-                  top-up ${usdc(r.amount)} → {shortHex(r.receipt.provider)} <span className="text-cyan">signed receipt</span>
+                  top-up ${usdc(r.amount)} → {shortHex(r.receipt.provider)} <span className="text-gold">signed receipt</span>
                 </span>
                 <Tx hash={r.receipt.topupTxHash} label="tx" />
               </li>
@@ -352,7 +352,7 @@ function AuditorPanel({ names }: { names: Record<string, string> }) {
     <Panel
       title="Auditor view · every eERC movement on the contract"
       aside={
-        <a href={`${SERVICES.operator}/audit/export.csv`} className="text-violet underline underline-offset-2 hover:text-ink">
+        <a href={`${SERVICES.operator}/audit/export.csv`} className="text-seal underline underline-offset-2 hover:text-ink">
           download CSV
         </a>
       }
@@ -372,7 +372,7 @@ function AuditorPanel({ names }: { names: Record<string, string> }) {
               <span className="truncate">
                 {who(e.from)} → {who(e.to)}
               </span>
-              <span className={e.amountSource.startsWith("public") ? "text-ink" : "text-violet"} title={e.amountSource}>
+              <span className={e.amountSource.startsWith("public") ? "text-ink" : "text-seal"} title={e.amountSource}>
                 {e.amount ?? "?"} {e.asset}
               </span>
               <Tx hash={e.txHash} label="tx" />

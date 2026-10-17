@@ -121,6 +121,9 @@ async function main() {
 
   // Make every run exercise the top-up path: privately return credit left over from earlier runs.
   await check("reset: refund credit left over from earlier runs", async () => {
+    // An aborted earlier run may have left Veil frozen by the kill-switch check.
+    const frozen = await publicClient.readContract({ address: contracts.hushRegistry, abi: hushRegistryAbi, functionName: "isFrozen", args: [veil.address] });
+    if (frozen) await unfreezeAgent(owner.walletClient, publicClient, contracts.hushRegistry, veil.address);
     const api = new HushFacilitatorApi(URLS.facilitator);
     const auth = await creditAuthHeader(veil.account, hushDomain(contracts.chainId, contracts.hushLedger), veil.address, provider.address);
     const state = await api.credit(veil.address, provider.address, auth);
@@ -216,6 +219,8 @@ async function main() {
   // ── 4. kill switch ──
   await check("kill switch: owner freezes Veil → facilitator rejects the next voucher → unfreeze restores", async () => {
     const freezeTx = await freezeAgent(owner.walletClient, publicClient, contracts.hushRegistry, veil.address);
+    // Always lift the freeze, even if a step below throws — a frozen Veil would fail every later run.
+    try {
     // Prove the facilitator enforces it (not just the honest client): hand-craft a voucher and ask /verify directly.
     const state = await credit.creditState(provider.address);
     const voucher = {
@@ -236,7 +241,9 @@ async function main() {
     assert(!verify.isValid && verify.invalidReason === "agent_frozen", `facilitator said ${JSON.stringify(verify)}`);
     const blocked = await veilPay.fetch(FEED).then((r) => r.status, (e: Error) => e.message);
     assert(blocked !== 200, "frozen agent still got data");
-    await unfreezeAgent(owner.walletClient, publicClient, contracts.hushRegistry, veil.address);
+    } finally {
+      await unfreezeAgent(owner.walletClient, publicClient, contracts.hushRegistry, veil.address);
+    }
     const res = await veilPay.fetch(FEED);
     assert(res.status === 200, `after unfreeze: ${res.status}`);
     return `frozen ${txLink(freezeTx)} → /verify: agent_frozen → unfrozen → 200`;

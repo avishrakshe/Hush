@@ -53,7 +53,7 @@ export function SceneRoot() {
         </div>
       )}
       {/* vignette + left scrim keep the copy column legible over the brightest parts of the scene */}
-      <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_45%,transparent_45%,rgba(5,6,10,0.75)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_45%,transparent_45%,rgba(0,0,0,0.8)_100%)]" />
       <div className="absolute inset-y-0 left-0 hidden w-[58%] bg-gradient-to-r from-bg/80 via-bg/35 to-transparent md:block" />
       {/* on phones the copy spans the full width, over the scene */}
       <div className="absolute inset-0 bg-bg/45 md:hidden" />

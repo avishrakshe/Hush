@@ -15,18 +15,19 @@ export function useNow(ms = 5_000) {
 
 export function Panel({ title, aside, children, className = "" }: { title: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`glass rounded-2xl ${className}`}>
-      <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-        <h3 className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-dim">{title}</h3>
+    <section className={`glass rounded-[22px] ${className}`}>
+      <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
+        <h3 className="text-[13.5px] font-medium text-ink">{title}</h3>
         {aside && <div className="font-mono text-[10.5px] text-ink-faint">{aside}</div>}
       </header>
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }
 
 export function Dot({ state }: { state: "up" | "down" | "checking" | "live" | "offline" | "connecting" }) {
-  const cls = state === "up" || state === "live" ? "bg-cyan" : state === "down" || state === "offline" ? "bg-pink" : "bg-ink-faint";
+  const cls =
+    state === "up" || state === "live" ? "bg-gold shadow-[0_0_8px_var(--gold)]" : state === "down" || state === "offline" ? "bg-leak" : "bg-ink-faint";
   return <span aria-hidden className={`inline-block size-1.5 rounded-full ${cls}`} />;
 }
 
@@ -40,7 +41,7 @@ export function Tx({ hash, label }: { hash: string; label?: string }) {
 
 export function Addr({ address, label }: { address: string; label?: string }) {
   return (
-    <a href={addressUrl(address)} target="_blank" rel="noreferrer" className="underline decoration-line-strong underline-offset-2 hover:decoration-cyan">
+    <a href={addressUrl(address)} target="_blank" rel="noreferrer" className="underline decoration-line-strong underline-offset-2 hover:decoration-gold">
       {label ?? shortHex(address)}
     </a>
   );
@@ -59,24 +60,26 @@ export function Button({
 }: {
   children: ReactNode;
   onClick?: () => void;
-  tone?: "default" | "cyan" | "violet" | "pink" | "danger";
+  tone?: "default" | "gold" | "seal" | "leak" | "danger";
   disabled?: boolean;
   pressed?: boolean;
 }) {
   const tones = {
     default: "border-line-strong text-ink hover:bg-white/[0.06]",
-    cyan: "border-cyan/40 text-cyan hover:bg-cyan/10",
-    violet: "border-violet/50 text-violet hover:bg-violet/10",
-    pink: "border-pink/40 text-pink hover:bg-pink/10",
+    gold: "border-gold/40 text-gold hover:bg-gold/10",
+    seal: "border-seal/50 text-seal hover:bg-seal/10",
+    leak: "border-leak/40 text-leak hover:bg-leak/10",
     danger: "border-avax/50 text-avax hover:bg-avax/10",
   };
+  // Pressed = the selected segment: filled gold, like a BUY/SELL toggle.
+  const on = "border-transparent bg-gradient-to-b from-gold-hi to-gold text-black shadow-[0_0_20px_-6px_var(--gold)]";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       aria-pressed={pressed}
-      className={`rounded-full border px-3.5 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${tones[tone]} ${pressed ? "bg-white/[0.08]" : ""}`}
+      className={`whitespace-nowrap rounded-full border px-4 py-1.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${pressed ? on : tones[tone]}`}
     >
       {children}
     </button>

@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { LABELS, labelEls } from "./coords";
 import { AGENT, COLORS, PROVIDERS, shared, smoothstep } from "./layout";
 
-const agentCore = COLORS.cyan.clone().multiplyScalar(2.4);
+const agentCore = COLORS.gold.clone().multiplyScalar(2.4);
 const providerCore = COLORS.ink.clone().multiplyScalar(1.6);
 
 /** The agent (left) and the three paid APIs it calls (right). Bobbing is local to each node's positioned group. */
@@ -35,7 +35,7 @@ export function Nodes() {
         <group ref={agent}>
           <mesh>
             <icosahedronGeometry args={[0.55, 1]} />
-            <meshBasicMaterial color={COLORS.cyan} wireframe transparent opacity={0.45} />
+            <meshBasicMaterial color={COLORS.gold} wireframe transparent opacity={0.45} />
           </mesh>
           <mesh>
             <sphereGeometry args={[0.17, 24, 24]} />
@@ -44,7 +44,7 @@ export function Nodes() {
         </group>
         <mesh ref={ring} rotation={[Math.PI / 2.3, 0.2, 0]}>
           <torusGeometry args={[0.9, 0.006, 6, 96]} />
-          <meshBasicMaterial color={COLORS.violet} transparent opacity={0.7} />
+          <meshBasicMaterial color={COLORS.seal} transparent opacity={0.7} />
         </mesh>
       </group>
 
@@ -73,9 +73,9 @@ export function Nodes() {
 export function LabelProjector() {
   const v = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera, size }) => {
-    // PROOF looks straight down (labels would clutter); they come back for PROVE's wide shot.
+    // HOW IT WORKS and PROOF put centred copy over the scene, so the labels step aside; they come back for PROVE.
     const p = shared.uProgress.value;
-    const fade = Math.min(1, 1 - smoothstep(2.4, 2.9, p) + smoothstep(3.5, 3.95, p));
+    const fade = Math.min(1, 1 - smoothstep(1.55, 1.95, p) + smoothstep(3.5, 3.95, p));
     for (const label of LABELS) {
       const el = labelEls.get(label.id);
       if (!el) continue;

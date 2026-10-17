@@ -32,8 +32,8 @@ export function DemoView() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
           <p className="kicker">Live demo · {isLocal(stack.contracts) ? "local hardhat chain" : "Avalanche Fuji"}</p>
-          <h1 className="mt-3 font-display text-[clamp(2rem,4.4vw,3.4rem)] font-semibold leading-[1] tracking-[-0.03em]">
-            Same strategy. <span className="text-pink">One leaks.</span> <span className="text-cyan">One doesn&apos;t.</span>
+          <h1 className="mt-6 font-display text-[clamp(2.6rem,5.5vw,4.6rem)] leading-[0.95]">
+            Same strategy. <span className="text-leak">One leaks.</span> <span className="text-gold">One doesn&apos;t.</span>
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-ink-dim">
             Atlas and Veil run the same loop: buy a signal, decide, trade mock stocks at the Hush Desk. Atlas pays with public
@@ -47,12 +47,12 @@ export function DemoView() {
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">View as</span>
         {VIEWERS.map((v) => (
-          <Button key={v.id} pressed={viewer === v.id} tone={v.id === "raw" ? "default" : v.id === "owner" ? "cyan" : "violet"} disabled={v.id !== "raw" && !operatorUp} onClick={() => setViewer(v.id)}>
+          <Button key={v.id} pressed={viewer === v.id} tone={v.id === "raw" ? "default" : v.id === "owner" ? "gold" : "seal"} disabled={v.id !== "raw" && !operatorUp} onClick={() => setViewer(v.id)}>
             {v.label}
           </Button>
         ))}
         <span className="font-mono text-[11px] text-ink-faint">{VIEWERS.find((v) => v.id === viewer)!.hint}</span>
-        {!operatorUp && <span className="font-mono text-[11px] text-pink">operator offline — owner/auditor views need `pnpm operator`</span>}
+        {!operatorUp && <span className="font-mono text-[11px] text-leak">operator offline — owner/auditor views need `pnpm operator`</span>}
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
@@ -85,8 +85,8 @@ function nameMap(stack: Stack): Record<string, string> {
 function StackStrip({ stack, feed }: { stack: Stack; feed: ChainFeed }) {
   const order: ServiceName[] = ["facilitator", "provider", "alphaking", "desk", "mirror", "operator", "atlas", "veil"];
   return (
-    <div className="glass rounded-2xl px-4 py-3">
-      <ul className="grid grid-cols-4 gap-x-4 gap-y-1.5 font-mono text-[10.5px] text-ink-dim">
+    <div className="glass rounded-[22px] px-4 py-3">
+      <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 font-mono text-[10.5px] text-ink-dim sm:grid-cols-4">
         {order.map((n) => (
           <li key={n} className="flex items-center gap-1.5" title={SERVICES[n]}>
             <Dot state={stack.health[n]} /> {n}
@@ -94,7 +94,7 @@ function StackStrip({ stack, feed }: { stack: Stack; feed: ChainFeed }) {
         ))}
       </ul>
       <p className="mt-2 border-t border-line pt-2 font-mono text-[10.5px] text-ink-faint">
-        block {feed.block?.toString() ?? "…"} {feed.error ? <span className="text-pink">· rpc: {feed.error}</span> : null}
+        block {feed.block?.toString() ?? "…"} {feed.error ? <span className="text-leak">· rpc: {feed.error}</span> : null}
       </p>
     </div>
   );
@@ -110,16 +110,16 @@ function AgentColumn({ agent, stack, feed, viewer, names }: { agent: AgentId; st
   const st = useAgentState(agent, viewer);
   const decrypted = useDecrypted(agent === "veil" ? rows : [], viewer);
   const kill = useKillSwitch(agent, stack.health.operator === "up");
-  const accent = agent === "atlas" ? "pink" : "cyan";
+  const accent = agent === "atlas" ? "leak" : "gold";
   const address = stack.targets?.[agent];
 
   return (
     <article className="flex flex-col gap-4">
-      <header className={`glass rounded-2xl border-t-2 p-5 ${agent === "atlas" ? "border-t-pink/60" : "border-t-cyan/60"}`}>
+      <header className={`glass rounded-[22px] border-t-2 p-5 ${agent === "atlas" ? "border-t-leak/60" : "border-t-gold/60"}`}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-2xl font-semibold">
-              {meta.name} <span className={`ml-1 font-mono text-[11px] uppercase tracking-[0.16em] ${agent === "atlas" ? "text-pink" : "text-cyan"}`}>{meta.scheme}</span>
+            <h2 className="font-display text-[2.2rem] leading-none">
+              {meta.name} <span className={`ml-1 font-mono text-[11px] uppercase tracking-[0.16em] ${agent === "atlas" ? "text-leak" : "text-gold"}`}>{meta.scheme}</span>
             </h2>
             <p className="mt-1 text-sm text-ink-dim">{meta.blurb}</p>
             <p className="mt-2 flex items-center gap-2 font-mono text-[11px] text-ink-faint">
@@ -144,7 +144,7 @@ function AgentColumn({ agent, stack, feed, viewer, names }: { agent: AgentId; st
                 {kill.busy ? "…" : "Kill switch"}
               </Button>
             )}
-            {kill.error && <span className="max-w-[12rem] text-right font-mono text-[10px] text-pink">{kill.error}</span>}
+            {kill.error && <span className="max-w-[12rem] text-right font-mono text-[10px] text-leak">{kill.error}</span>}
           </div>
         </div>
         <div className="mt-5">
@@ -211,7 +211,7 @@ function MirrorPanel({ mirror, up }: { mirror: MirrorState | null; up: boolean }
   return (
     <section className="mt-8">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="font-display text-2xl font-semibold">
+        <h2 className="font-display text-[2.2rem] leading-none">
           Mirror <span className="ml-1 font-mono text-[11px] uppercase tracking-[0.16em] text-avax">copycat bot</span>
         </h2>
         <p className="font-mono text-[11px] text-ink-faint">
@@ -219,7 +219,7 @@ function MirrorPanel({ mirror, up }: { mirror: MirrorState | null; up: boolean }
         </p>
       </div>
       {!mirror ? (
-        <div className="glass mt-4 rounded-2xl">
+        <div className="glass mt-4 rounded-[22px]">
           <Empty>{up ? "loading…" : "Mirror is not running (`pnpm mirror`)"}</Empty>
         </div>
       ) : (
@@ -230,9 +230,9 @@ function MirrorPanel({ mirror, up }: { mirror: MirrorState | null; up: boolean }
               const pub = t?.kind === "public";
               // Until a target trades publicly Mirror has only seen signal purchases or encrypted transfers.
               const verdict = t?.kind === "unknown" ? "watching — no trade seen yet" : t?.verdict;
-              const accent = label === "Atlas" ? "text-pink" : "text-cyan";
+              const accent = label === "Atlas" ? "text-leak" : "text-gold";
               return (
-                <div key={label} className={`glass rounded-2xl p-5 ${label === "Atlas" ? "border-t-2 border-t-pink/50" : "border-t-2 border-t-cyan/50"}`}>
+                <div key={label} className={`glass rounded-[22px] p-5 ${label === "Atlas" ? "border-t-2 border-t-leak/50" : "border-t-2 border-t-gold/50"}`}>
                   <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-dim">Mirror vs {label}</p>
                   <p className={`mt-3 font-display text-4xl font-semibold tabular-nums ${accent}`}>
                     {t ? `${t.tradesCopied}/${t.tradesSeen}` : "0/0"}
@@ -268,7 +268,7 @@ function MirrorPanel({ mirror, up }: { mirror: MirrorState | null; up: boolean }
                 {recent.map((e) => (
                   <li key={e.id} className="grid grid-cols-[4.2rem_1fr_auto] gap-x-2">
                     <span className="text-ink-faint">{clock(e.at)}</span>
-                    <span className={`truncate ${e.type === "copied" ? "text-pink" : e.kind === "private" ? "text-cyan" : "text-ink-dim"}`}>
+                    <span className={`truncate ${e.type === "copied" ? "text-leak" : e.kind === "private" ? "text-gold" : "text-ink-dim"}`}>
                       {e.type === "copied"
                         ? `copied ${e.target}: ${e.side} ${e.shares} ${e.ticker} @ $${e.price} (+${e.lagSec}s)`
                         : e.type === "observed"
@@ -294,7 +294,7 @@ function MirrorPanel({ mirror, up }: { mirror: MirrorState | null; up: boolean }
 function BatchStrip({ feed, names }: { feed: ChainFeed; names: Record<string, string> }) {
   return (
     <section className="mt-8">
-      <Panel title="Merkle batch roots on HushLedger · fixed 2-min cadence, empty batches included" aside={`${feed.batches.length} in view`}>
+      <Panel title="Merkle batch roots on HushLedger · fixed cadence (2 min on Fuji), empty batches included" aside={`${feed.batches.length} in view`}>
         {feed.batches.length === 0 ? (
           <Empty>no batch committed in view yet</Empty>
         ) : (
@@ -303,7 +303,7 @@ function BatchStrip({ feed, names }: { feed: ChainFeed; names: Record<string, st
               <li key={b.key} className="grid grid-cols-[4.2rem_5rem_1fr_auto] gap-x-2">
                 <span className="text-ink-faint">{clock(b.at)}</span>
                 <span className="text-ink-dim">{names[b.from?.toLowerCase() ?? ""] ?? shortHex(b.from ?? "")}</span>
-                <span className="truncate text-cyan">
+                <span className="truncate text-gold">
                   #{b.batchId?.toString()} {shortHex(b.root ?? "", 10, 6)}
                 </span>
                 <Tx hash={b.txHash} label="tx" />

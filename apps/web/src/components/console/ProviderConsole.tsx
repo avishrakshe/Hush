@@ -49,8 +49,8 @@ export function ProviderConsole() {
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-10 sm:px-8">
       <p className="kicker">Provider console</p>
-      <h1 className="mt-3 font-display text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1] tracking-[-0.03em]">
-        Paid privately. <span className="text-violet">Accountable publicly.</span>
+      <h1 className="mt-6 font-display text-[clamp(2.6rem,5.5vw,4.4rem)] leading-[0.95]">
+        Paid privately. <span className="text-seal">Accountable publicly.</span>
       </h1>
       <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-dim">
         The provider decrypts its own top-ups and sees each agent&apos;s credit; the chain sees only ciphertext and the Merkle
@@ -61,10 +61,10 @@ export function ProviderConsole() {
       <AlphaSection chainId={stack.contracts.chainId} oracle={stack.contracts.stockOracle} />
 
       <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
-        <h2 className="font-display text-2xl font-semibold">SignalCo&apos;s facilitator</h2>
+        <h2 className="font-display text-[2.2rem] leading-none">SignalCo&apos;s facilitator</h2>
         <div className="flex items-center gap-3">
           {commit.msg && <span className="font-mono text-[11px] text-ink-faint">{commit.msg}</span>}
-          <Button tone="violet" disabled={!admin || commit.busy} onClick={() => void commitNow()}>
+          <Button tone="seal" disabled={!admin || commit.busy} onClick={() => void commitNow()}>
             {commit.busy ? "committing…" : "Commit batch now"}
           </Button>
         </div>
@@ -97,7 +97,7 @@ export function ProviderConsole() {
                       </td>
                       <td>${usdc(c.creditedTotal)}</td>
                       <td>${usdc(c.settledCumulative, 4)}</td>
-                      <td className="text-cyan">${usdc(c.available, 4)}</td>
+                      <td className="text-gold">${usdc(c.available, 4)}</td>
                       <td className="text-ink-faint">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : "—"}</td>
                     </tr>
                   ))}
@@ -114,7 +114,7 @@ export function ProviderConsole() {
                 {overview.batches.slice(0, 10).map((b) => (
                   <li key={b.batchId} className="grid grid-cols-[3.5rem_1fr_6rem_auto] gap-x-2">
                     <span className="text-ink-dim">#{b.batchId}</span>
-                    <span className="truncate text-cyan">{shortHex(b.root, 10, 6)}</span>
+                    <span className="truncate text-gold">{shortHex(b.root, 10, 6)}</span>
                     <span className={b.dummy ? "text-ink-faint" : "text-ink"}>{b.dummy ? "dummy" : `${b.voucherCount} vouchers`}</span>
                     <Tx hash={b.txHash} label="tx" />
                   </li>
@@ -135,7 +135,7 @@ export function ProviderConsole() {
                       {who(t.agent)}
                       {t.payer.toLowerCase() !== t.agent.toLowerCase() && <span className="text-ink-faint"> (paid by {who(t.payer)})</span>}
                     </span>
-                    <span className="text-cyan">${usdc(t.amount)} 🔓</span>
+                    <span className="text-gold">${usdc(t.amount)} 🔓</span>
                     <Tx hash={t.txHash} label="tx" />
                   </li>
                 ))}
@@ -168,7 +168,7 @@ export function ProviderConsole() {
 }
 
 function Notice({ children }: { children: React.ReactNode }) {
-  return <p className="glass mt-4 rounded-2xl px-5 py-4 font-mono text-[12px] text-ink-dim">{children}</p>;
+  return <p className="glass mt-4 rounded-[22px] px-5 py-4 font-mono text-[12px] text-ink-dim">{children}</p>;
 }
 
 function useAdminEvents(enabled: boolean) {
@@ -222,10 +222,10 @@ function AlphaSection({ chainId, oracle }: { chainId: number; oracle?: `0x${stri
   return (
     <section className="mt-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="font-display text-2xl font-semibold">Proof of Alpha · signal providers</h2>
+        <h2 className="font-display text-[2.2rem] leading-none">Proof of Alpha · signal providers</h2>
         <div className="flex items-center gap-3">
           {at && <span className="font-mono text-[11px] text-ink-faint">verified {ago(at)} against HushAlpha + the oracle</span>}
-          <Button tone="cyan" disabled={!oracle} onClick={() => void run()}>
+          <Button tone="gold" disabled={!oracle} onClick={() => void run()}>
             Verify again
           </Button>
         </div>
@@ -245,9 +245,9 @@ function AlphaCard({ label, blurb, url, check }: { label: string; blurb: string;
   const c = check === "running" ? undefined : check;
   const r = c?.report;
   const failed = r && !r.valid;
-  const tone = failed ? "border-t-avax/70" : r?.valid ? "border-t-cyan/60" : "border-t-line-strong";
+  const tone = failed ? "border-t-avax/70" : r?.valid ? "border-t-gold/60" : "border-t-line-strong";
   return (
-    <div className={`glass rounded-2xl border-t-2 p-5 ${tone}`}>
+    <div className={`glass rounded-[22px] border-t-2 p-5 ${tone}`}>
       <div className="flex items-baseline justify-between gap-3">
         <p className="font-display text-xl font-semibold">{label}</p>
         <span className="font-mono text-[10.5px] text-ink-faint">{url}</span>
@@ -267,11 +267,11 @@ function AlphaCard({ label, blurb, url, check }: { label: string; blurb: string;
             </div>
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">verified</p>
-              <p className={`font-display text-3xl font-semibold tabular-nums ${failed ? "text-avax" : "text-cyan"}`}>{failed ? "✗" : pct(r?.winRate)}</p>
+              <p className={`font-display text-3xl font-semibold tabular-nums ${failed ? "text-avax" : "text-gold"}`}>{failed ? "✗" : pct(r?.winRate)}</p>
               <p className="font-mono text-[10.5px] text-ink-faint">{r ? (r.valid ? `over ${r.calls} resolved calls` : `fails at epoch ${r.failedEpoch}`) : "no proof yet"}</p>
             </div>
           </div>
-          <p className={`mt-4 text-[12.5px] leading-relaxed ${failed ? "text-avax" : c.passes ? "text-cyan" : "text-ink-dim"}`}>{failed ? r!.reason : c.why}</p>
+          <p className={`mt-4 text-[12.5px] leading-relaxed ${failed ? "text-avax" : c.passes ? "text-gold" : "text-ink-dim"}`}>{failed ? r!.reason : c.why}</p>
           {r?.valid && (
             <dl className="mt-3 grid grid-cols-[9rem_1fr] gap-y-1 font-mono text-[11px]">
               <dt className="text-ink-faint">epochs committed</dt>
@@ -301,7 +301,7 @@ function DeskSection({ up }: { up: boolean }) {
   const page = usePoll(() => getJson<{ desk: string }>(`${SERVICES.desk}/`), 30_000);
   return (
     <section className="mt-10">
-      <h2 className="font-display text-2xl font-semibold">Hush Desk</h2>
+      <h2 className="font-display text-[2.2rem] leading-none">Hush Desk</h2>
       <p className="mt-1 text-[13px] text-ink-dim">
         Custody is always backed by the desk&apos;s encrypted inventory, so every position can be settled out.{" "}
         {page?.desk && (
@@ -328,7 +328,7 @@ function DeskSection({ up }: { up: boolean }) {
                 {inv.map((r) => (
                   <tr key={r.ticker} className="border-t border-line">
                     <td className="py-1.5">m{r.ticker}</td>
-                    <td className="text-cyan">{r.custodied}</td>
+                    <td className="text-gold">{r.custodied}</td>
                     <td>{r.privateInventory ?? "—"}</td>
                     <td className="text-ink-dim">{r.publicInventory}</td>
                   </tr>

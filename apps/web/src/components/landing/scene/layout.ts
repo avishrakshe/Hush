@@ -21,13 +21,14 @@ export const MERKLE = { x: 5.7, z: 0, leafY: 0.25, levelGap: 0.36 };
 /** Encrypted top-ups land under the providers, on their own lane. */
 export const TOPUP = { x: 3.5, z: -1.0, every: 3.25 };
 
+/** Same semantics as the CSS tokens: gold = private, seal = encrypted, leak = public exposure. */
 export const COLORS = {
-  cyan: new Color("#22E6FF"),
-  violet: new Color("#8B5CF6"),
-  pink: new Color("#FF3DA8"),
+  gold: new Color("#F6C445"),
+  seal: new Color("#D7B56D"),
+  leak: new Color("#FF5F5A"),
   avax: new Color("#E84142"),
-  ink: new Color("#E9ECF5"),
-  grid: new Color("#46507A"),
+  ink: new Color("#F5F2EA"),
+  grid: new Color("#5A4A26"),
 };
 
 /**

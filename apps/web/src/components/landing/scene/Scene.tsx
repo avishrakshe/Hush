@@ -43,7 +43,7 @@ export default function Scene({ quality: initial, onReady }: { quality: Quality;
       camera={{ fov: 38, near: 0.1, far: 80, position: [-2.6, 1.6, 12.6] }}
       onCreated={() => requestAnimationFrame(onReady)}
     >
-      <color attach="background" args={["#05060A"]} />
+      <color attach="background" args={["#000000"]} />
       <PerformanceMonitor flipflops={2} onDecline={() => setQuality("low")} onFallback={() => setQuality("low")} />
       <Driver />
       <CameraRig />

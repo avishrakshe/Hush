@@ -29,10 +29,10 @@ function AgentLabel() {
   const hush = useLanding((s) => s.mode === "hush");
   return (
     <>
-      <span className="text-cyan">agent 0x4a1e…09c9</span>
+      <span className="text-gold">agent 0x4a1e…09c9</span>
       <br />
       <span className="text-ink-faint">spent today </span>
-      {hush ? <span className="text-violet">████ (encrypted)</span> : <span className="text-pink">3.41 USDC · 212 calls</span>}
+      {hush ? <span className="text-seal">████ (encrypted)</span> : <span className="text-leak">3.41 USDC · 212 calls</span>}
     </>
   );
 }
@@ -43,7 +43,7 @@ function MirrorLabel() {
     <>
       <span className="text-avax">mirror · copycat bot</span>
       <br />
-      {hush ? <span className="text-ink-faint">nothing to copy — amounts encrypted</span> : <span className="text-pink">copying every public trade</span>}
+      {hush ? <span className="text-ink-faint">nothing to copy — amounts encrypted</span> : <span className="text-leak">copying every public trade</span>}
     </>
   );
 }

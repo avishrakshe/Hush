@@ -14,7 +14,7 @@ interface Row {
   time: string;
   kind: "pay" | "topup" | "batch";
   cells: [string, string, string];
-  accent?: "pink" | "cyan" | "violet" | "ink";
+  accent?: "leak" | "gold" | "seal" | "ink";
 }
 
 const AGENT = "0x4a1e…09c9";
@@ -61,7 +61,7 @@ function* publicFeed(): Generator<Row, never> {
         time: clock(t),
         kind: "pay",
         cells: [`${AGENT} → ${api.name}`, `${api.price.toFixed(3)} USDC`, step.api === "model" ? "POST /v1/infer" : `GET /${step.api}`],
-        accent: step.api === "model" ? "ink" : "pink",
+        accent: step.api === "model" ? "ink" : "leak",
       };
     }
   }
@@ -78,7 +78,7 @@ function* hushFeed(): Generator<Row | null, never> {
         time: clock(t),
         kind: "topup",
         cells: [`${AGENT} → ${PROVIDER}`, `c1 ${short()}`, `c2 ${short()}`],
-        accent: "violet",
+        accent: "seal",
       };
     } else if (tick % 4 === 3) {
       yield {
@@ -86,7 +86,7 @@ function* hushFeed(): Generator<Row | null, never> {
         time: clock(t),
         kind: "batch",
         cells: [`HushLedger.commitBatch #${212 + Math.floor(tick / 4)}`, `root ${short()}`, "every 120 s"],
-        accent: "cyan",
+        accent: "gold",
       };
     } else {
       yield null;
@@ -144,10 +144,10 @@ export function ObserverTerminal() {
   const spent = rows.reduce((sum, r) => sum + (r.kind === "pay" ? Number.parseFloat(r.cells[1]) : 0), 0);
 
   return (
-    <div ref={ref} className="glass w-full overflow-hidden rounded-2xl font-mono text-[11.5px] leading-relaxed shadow-2xl shadow-black/40">
+    <div ref={ref} className="glass w-full overflow-hidden rounded-[22px] font-mono text-[11.5px] leading-relaxed shadow-2xl shadow-black/40">
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5 text-[10px] uppercase tracking-[0.2em] text-ink-faint">
         <span className="flex items-center gap-2">
-          <span className={`size-1.5 rounded-full ${hush ? "bg-cyan" : "bg-pink"} shadow-[0_0_10px_currentColor]`} />
+          <span className={`size-1.5 rounded-full ${hush ? "bg-gold" : "bg-leak"} shadow-[0_0_10px_currentColor]`} />
           chain observer · watching {AGENT}
         </span>
         <span className="hidden sm:inline">simulated</span>
@@ -176,12 +176,12 @@ export function ObserverTerminal() {
 
       <div className="border-t border-line px-4 py-3 text-[11px]">
         {hush ? (
-          <p className="text-cyan/90">
+          <p className="text-gold/90">
             <span className="text-ink-faint">▸ inference:</span> nothing. Amounts are ElGamal ciphertext, calls never touch
             the chain, and batch roots land every 120 s whether the agent is busy or idle.
           </p>
         ) : (
-          <p className="text-pink/90">
+          <p className="text-leak/90">
             <span className="text-ink-faint">▸ inference:</span> polls feed.api every 12 s, calls model.api right after the
             price moves · {spent.toFixed(2)} USDC in view → momentum bot. The next model call is the next trade.
           </p>
@@ -193,14 +193,14 @@ export function ObserverTerminal() {
 
 function accent(a: Row["accent"]) {
   switch (a) {
-    case "pink":
-      return "text-pink";
+    case "leak":
+      return "text-leak";
     case "ink":
       return "font-semibold text-ink";
-    case "cyan":
-      return "text-cyan";
-    case "violet":
-      return "text-violet";
+    case "gold":
+      return "text-gold";
+    case "seal":
+      return "text-seal";
     default:
       return "text-ink";
   }
