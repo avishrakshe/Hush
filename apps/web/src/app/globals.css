@@ -87,6 +87,10 @@
     radial-gradient(55% 45% at 78% 30%, rgba(139, 92, 246, 0.14), transparent 70%),
     radial-gradient(70% 40% at 50% 100%, rgba(255, 61, 168, 0.07), transparent 70%), var(--bg);
 }
+/* Clip the perspective grid below, which overhangs the sides by design (no horizontal page scroll). */
+.backdrop {
+  overflow-x: clip;
+}
 .backdrop::after {
   content: "";
   position: absolute;

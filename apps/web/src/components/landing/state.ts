@@ -6,7 +6,7 @@ export interface LandingState {
   mode: Mode;
   /** True until the visitor touches the toggle: until then scrolling into THE VEIL switches to hush. */
   followScroll: boolean;
-  /** 0 THE LEAK · 1 THE VEIL · 2 HOW IT WORKS · 3 PROOF */
+  /** 0 THE LEAK · 1 THE VEIL · 2 HOW IT WORKS · 3 PROOF · 4 PROVE */
   chapter: number;
 }
 
@@ -22,7 +22,7 @@ function set(patch: Partial<LandingState>) {
 }
 
 /**
- * Continuous scroll position measured in chapters (0 → 4). Written on scroll and read every frame by the 3D scene;
+ * Continuous scroll position measured in chapters (0 → 5). Written on scroll and read every frame by the 3D scene;
  * it deliberately lives outside React so scrolling never re-renders anything.
  */
 export const scrollState = { progress: 0 };

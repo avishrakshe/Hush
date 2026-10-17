@@ -1,7 +1,7 @@
 "use client";
 
 import { shortHex } from "@/lib/chain";
-import { clock, median, usdc } from "@/lib/format";
+import { clock, median, shares, usdc } from "@/lib/format";
 import type { AgentId } from "@/lib/services";
 import type { ChainRow } from "./useChainFeed";
 import { Empty, Tx } from "./ui";
@@ -18,33 +18,36 @@ export interface LeakItem {
   evidence: string;
 }
 
+const PUBLIC_PAYMENT = new Set(["payment", "signal-payment", "trade-payment"]);
+const PUBLIC_TRADE = new Set(["delivery", "stock-sale"]);
+
 /**
  * What an observer of the chain has learned about the agent so far — computed only from the rows actually seen on
- * Fuji, never assumed. Atlas leaks each item once the evidence shows up; Veil's top-ups expose only the payee.
+ * chain, never assumed. Atlas leaks each item once the evidence shows up; Veil's top-ups expose only the payee.
  */
 export function leakItems(agent: AgentId, rows: ChainRow[]): LeakItem[] {
   if (agent === "atlas") {
-    const pays = rows.filter((r) => r.kind === "payment");
-    const gaps = pays
-      .map((r) => r.at)
-      .sort((a, b) => a - b)
-      .slice(1)
-      .map((t, i, arr) => t - (i === 0 ? pays.map((r) => r.at).sort((a, b) => a - b)[0]! : arr[i - 1]!));
-    const gap = median(gaps);
-    const total = pays.reduce((s, r) => s + (r.value ?? 0n), 0n);
+    const signals = rows.filter((r) => r.kind === "signal-payment");
+    const trades = rows.filter((r) => PUBLIC_TRADE.has(r.kind));
+    const times = trades.map((r) => r.at).sort((a, b) => a - b);
+    const gap = median(times.slice(1).map((t, i) => t - times[i]!));
+    const held = new Map<string, bigint>();
+    for (const r of trades) held.set(r.ticker ?? "?", (held.get(r.ticker ?? "?") ?? 0n) + (r.kind === "delivery" ? 1n : -1n) * (r.shares ?? 0n));
+    const position = [...held].filter(([, v]) => v !== 0n).map(([k, v]) => `${shares(v)} m${k}`).join(", ");
+    const last = trades[0];
     return [
-      { label: "Who it pays", leaked: pays.length > 0, evidence: pays[0]?.to ? `→ ${shortHex(pays[0].to)}` : "waiting for a payment" },
-      { label: "What each call costs", leaked: pays.length > 0, evidence: pays[0]?.value !== undefined ? `${usdc(pays[0].value)} USDC, in the clear` : "—" },
-      { label: "How often it calls", leaked: pays.length >= 2, evidence: gap ? `one payment every ~${Math.round(gap / 1000)} s` : "needs two payments" },
-      { label: "What it spends", leaked: pays.length > 0, evidence: `${usdc(total)} USDC across ${pays.length} payments` },
+      { label: "Where it buys signals", leaked: signals.length > 0, evidence: signals[0] ? `${usdc(signals[0].value ?? 0n)} USDC → ${shortHex(signals[0].to ?? "")}` : "no signal purchase yet" },
+      { label: "What it trades", leaked: trades.length > 0, evidence: last ? `${last.kind === "delivery" ? "bought" : "sold"} ${shares(last.shares ?? 0n)} m${last.ticker}` : "no trade yet" },
+      { label: "When it trades", leaked: trades.length >= 2, evidence: gap ? `a trade every ~${Math.round(gap / 1000)} s, right after each signal` : "needs two trades" },
+      { label: "What it holds", leaked: trades.length > 0, evidence: position || (trades.length ? "flat" : "—") },
     ];
   }
   const topups = rows.filter((r) => r.kind === "topup");
   return [
-    { label: "Who it pays", leaked: topups.length > 0, evidence: topups.length ? "top-up receiver is public (known limitation)" : "no top-up in view" },
-    { label: "What each call costs", leaked: false, evidence: "calls are off-chain vouchers" },
-    { label: "How often it calls", leaked: false, evidence: "only roots, on a fixed 2-min clock" },
-    { label: "What it spends", leaked: false, evidence: `${topups.length} top-up${topups.length === 1 ? "" : "s"}, amounts encrypted` },
+    { label: "Where it buys signals", leaked: topups.length > 0, evidence: topups.length ? "top-up receivers are public (known limitation)" : "no top-up in view" },
+    { label: "What it trades", leaked: false, evidence: "trades are off-chain vouchers at the desk" },
+    { label: "When it trades", leaked: false, evidence: "only batch roots, on a fixed 2-min clock" },
+    { label: "What it holds", leaked: false, evidence: "custodied — only desk-signed statements" },
   ];
 }
 
@@ -69,7 +72,9 @@ export function PrivacyMeter({ items, accent }: { items: LeakItem[]; accent: "pi
               {i.leaked ? "●" : "○"}
             </span>
             <span className="text-ink">{i.label}</span>
-            <span className="truncate font-mono text-[11px] text-ink-faint">{i.evidence}</span>
+            <span className="truncate font-mono text-[11px] text-ink-faint" title={i.evidence}>
+              {i.evidence}
+            </span>
           </li>
         ))}
       </ul>
@@ -78,18 +83,24 @@ export function PrivacyMeter({ items, accent }: { items: LeakItem[]; accent: "pi
 }
 
 const LABEL: Record<string, string> = {
-  payment: "x402 payment",
+  payment: "USDC payment",
+  "signal-payment": "x402 signal payment",
+  "trade-payment": "x402 trade payment",
+  proceeds: "sale proceeds",
+  delivery: "stock delivered",
+  "stock-sale": "stock sold",
   topup: "eERC top-up",
   allocation: "treasury → agent",
   refund: "credit refund",
+  "settle-out": "settle-out",
   transfer: "eERC transfer",
   frozen: "kill switch: frozen",
   unfrozen: "kill switch: unfrozen",
 };
 
-/** On-chain rows as an observer sees them; amounts appear only when the viewer can decrypt them. */
-export function ChainList({ rows, decrypted, names }: { rows: ChainRow[]; decrypted?: Map<string, Decrypted>; names: Record<string, string> }) {
-  const shown = rows.filter((r) => r.kind !== "batch").slice(0, 9);
+/** On-chain rows as an observer sees them; amounts appear only when public or when the viewer can decrypt them. */
+export function ChainList({ rows, decrypted, names, limit = 9 }: { rows: ChainRow[]; decrypted?: Map<string, Decrypted>; names: Record<string, string>; limit?: number }) {
+  const shown = rows.filter((r) => r.kind !== "batch").slice(0, limit);
   if (shown.length === 0) return <Empty>nothing on-chain in the last ~90 min</Empty>;
   const name = (a?: string) => (a ? (names[a.toLowerCase()] ?? shortHex(a)) : "?");
   return (
@@ -112,9 +123,13 @@ export function ChainList({ rows, decrypted, names }: { rows: ChainRow[]; decryp
             <span className="flex items-baseline gap-2">
               {r.value !== undefined ? (
                 <span className="text-pink">{usdc(r.value)} USDC</span>
+              ) : r.shares !== undefined ? (
+                <span className="text-pink">
+                  {shares(r.shares)} m{r.ticker}
+                </span>
               ) : kill ? null : d?.amount ? (
                 <span className="text-cyan" title={d.via}>
-                  {usdc(d.amount)} hUSDC 🔓
+                  {usdc(d.amount)} 🔓
                 </span>
               ) : (
                 <span className="text-violet">encrypted</span>
@@ -143,8 +158,10 @@ export function Footprint({ rows, batches, now, agent }: { rows: ChainRow[]; bat
           <rect key={r.key} x={x(r.at) - 0.15} y="7" width="0.3" height="9" fill="var(--cyan)" opacity="0.8" />
         ))}
         {own.map((r) =>
-          r.kind === "payment" ? (
+          PUBLIC_PAYMENT.has(r.kind) || r.kind === "proceeds" ? (
             <rect key={r.key} x={x(r.at) - 0.2} y="3" width="0.4" height="13" fill="var(--pink)" />
+          ) : PUBLIC_TRADE.has(r.kind) ? (
+            <rect key={r.key} x={x(r.at) - 0.2} y="0" width="0.4" height="16" fill="var(--avax)" />
           ) : r.kind === "frozen" || r.kind === "unfrozen" ? (
             <rect key={r.key} x={x(r.at) - 0.2} y="1" width="0.4" height="15" fill="var(--ink)" />
           ) : (
@@ -157,7 +174,7 @@ export function Footprint({ rows, batches, now, agent }: { rows: ChainRow[]; bat
         <span>
           {agent === "atlas" ? (
             <>
-              <span className="text-pink">■</span> payment
+              <span className="text-pink">■</span> USDC payment · <span className="text-avax">■</span> stock transfer
             </>
           ) : (
             <>

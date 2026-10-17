@@ -8,7 +8,7 @@ const HUSH_AT = 0.9;
 
 /**
  * Measures how far the viewport centre has travelled through the `[data-chapter]` sections and publishes it as a
- * continuous 0 → 4 value. Rendered once on the landing page; renders nothing.
+ * continuous 0 → 5 value. Rendered once on the landing page; renders nothing.
  */
 export function ScrollProgress() {
   useEffect(() => {

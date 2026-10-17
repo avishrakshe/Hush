@@ -13,10 +13,11 @@
  *
  *   pnpm operator          (Fuji)   ·   pnpm operator:local
  */
-import { NETWORK, ROLES, type Role, URLS, loadContracts, publicClient, signer, stateTag, txLink, wallet } from "@hush/config";
+import { NET, NETWORK, ROLES, type Role, URLS, loadContracts, publicClient, signer, stateTag, txLink, wallet } from "@hush/config";
 import {
   type EercAccount,
   type Sealed,
+  buildTradeReport,
   creditAuthHeader,
   eercToAtomic,
   freezeAgent,
@@ -32,7 +33,7 @@ import {
   verifyMerkleProof,
   voucherFromJson,
 } from "@hush/x402";
-import { HushFacilitatorApi } from "@hush/x402/client";
+import { HushFacilitatorApi, MemoryHushStore } from "@hush/x402/client";
 import { type HushStoreData, emptyStoreData } from "@hush/x402/client";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { existsSync, readFileSync } from "node:fs";
@@ -331,6 +332,32 @@ app.post(
       else out.receipts.invalid++;
     }
     send(res, out);
+  }),
+);
+
+/**
+ * The agent's trade report at the Hush Desk, built from its own ledger (fills, statements, vouchers) with the desk's
+ * HushLedger inclusion proofs. The console verifies it in the browser with verifyTradeReport — the operator only
+ * assembles what the agent already holds.
+ */
+app.get(
+  "/agents/:agent/trade-report",
+  wrap(async (req, res) => {
+    const id = agentParam(req.params.agent);
+    if (!contracts.hushAlpha) throw new OperatorError(404, "this deployment has no HushAlpha (desk contracts)");
+    const page = (await fetch(`${URLS.desk}/`).then((r) => r.json()).catch(() => null)) as { desk?: Address } | null;
+    if (!page?.desk) throw new OperatorError(503, `no Hush Desk at ${URLS.desk}`);
+    const deskApi = new HushFacilitatorApi(URLS.desk);
+    const report = await buildTradeReport({
+      store: new MemoryHushStore(readLedger(id)),
+      agent: agentWallets[id].address,
+      desk: page.desk,
+      chainId: contracts.chainId,
+      hushAlpha: contracts.hushAlpha,
+      hushLedger: contracts.hushLedger,
+      proof: (leaf) => deskApi.proof(leaf),
+    });
+    send(res, { report, oracle: contracts.stockOracle ?? null, rpc: NET.rpc });
   }),
 );
 

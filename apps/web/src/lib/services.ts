@@ -5,6 +5,9 @@
 export const SERVICES = {
   facilitator: process.env.NEXT_PUBLIC_FACILITATOR_URL || "http://localhost:4022",
   provider: process.env.NEXT_PUBLIC_PROVIDER_URL || "http://localhost:4021",
+  alphaking: process.env.NEXT_PUBLIC_ALPHAKING_URL || "http://localhost:4025",
+  desk: process.env.NEXT_PUBLIC_DESK_URL || "http://localhost:4023",
+  mirror: process.env.NEXT_PUBLIC_MIRROR_URL || "http://localhost:4033",
   operator: process.env.NEXT_PUBLIC_OPERATOR_URL || "http://localhost:4040",
   atlas: process.env.NEXT_PUBLIC_ATLAS_URL || "http://localhost:4031",
   veil: process.env.NEXT_PUBLIC_VEIL_URL || "http://localhost:4032",
@@ -12,11 +15,12 @@ export const SERVICES = {
 export type ServiceName = keyof typeof SERVICES;
 
 export const FUJI_RPC = process.env.NEXT_PUBLIC_FUJI_RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc";
+export const LOCAL_RPC = process.env.NEXT_PUBLIC_LOCAL_RPC_URL || "http://127.0.0.1:8545";
 
 export type AgentId = "atlas" | "veil";
 export const AGENT_META: Record<AgentId, { name: string; scheme: string; blurb: string }> = {
-  atlas: { name: "Atlas", scheme: "x402 exact", blurb: "public x402 — one USDC transfer per call" },
-  veil: { name: "Veil", scheme: "hush-credit", blurb: "Hush — one encrypted top-up, then signed vouchers" },
+  atlas: { name: "Atlas", scheme: "x402 exact", blurb: "public x402 — every signal, trade and position is a plain on-chain transfer" },
+  veil: { name: "Veil", scheme: "hush-credit · hush-rfq", blurb: "Hush — encrypted top-ups, off-chain vouchers, custodied positions" },
 };
 
 /** Typed client for the local operator (apps/operator). POSTs carry the header that blocks cross-site requests. */
@@ -31,11 +35,15 @@ export async function operator<T>(path: string, init?: { method?: "GET" | "POST"
   return body;
 }
 
-export async function ping(url: string, timeoutMs = 2_500): Promise<boolean> {
+export async function getJson<T>(url: string, timeoutMs = 2_500): Promise<T | null> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
-    return res.ok;
+    return res.ok ? ((await res.json()) as T) : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export async function ping(url: string, timeoutMs = 2_500): Promise<boolean> {
+  return (await getJson(url, timeoutMs)) !== null;
 }

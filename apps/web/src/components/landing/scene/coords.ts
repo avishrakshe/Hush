@@ -11,10 +11,14 @@ export const PROVIDER_DEFS = [
   { xyz: [3.15, -0.7, -0.25] as XYZ, name: "model.api", price: "0.250" },
 ] as const;
 
+/** Mirror, the copycat bot: front-centre, between the agent and the providers, hovering over the tape it reads. */
+export const MIRROR_XYZ: XYZ = [0.3, -0.85, 2.3];
+
 /** DOM labels pinned to scene points. Rendered by SceneLabels (page DOM), positioned per frame by LabelProjector. */
-export const LABELS: { id: string; at: XYZ; anchor: "below" | "right" }[] = [
+export const LABELS: { id: string; at: XYZ; anchor: "below" | "right" | "left" }[] = [
   { id: "agent", at: [AGENT_XYZ[0], AGENT_XYZ[1] - 0.95, AGENT_XYZ[2]], anchor: "below" },
   ...PROVIDER_DEFS.map((p, i) => ({ id: `provider-${i}`, at: [p.xyz[0], p.xyz[1] - 0.4, p.xyz[2]] as XYZ, anchor: "below" as const })),
+  { id: "mirror", at: [MIRROR_XYZ[0] - 0.6, MIRROR_XYZ[1], MIRROR_XYZ[2]], anchor: "left" },
 ];
 
 export const labelEls = new Map<string, HTMLElement>();

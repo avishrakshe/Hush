@@ -15,10 +15,10 @@ export function SceneLabels() {
             else labelEls.delete(label.id);
           }}
           className={`absolute left-0 top-0 whitespace-nowrap font-mono text-[10px] leading-snug tracking-wide opacity-0 will-change-transform ${
-            label.anchor === "below" ? "text-center" : ""
+            label.anchor === "below" ? "text-center" : label.anchor === "left" ? "text-right" : ""
           }`}
         >
-          {label.id === "agent" ? <AgentLabel /> : <ProviderLabel index={Number(label.id.split("-")[1])} />}
+          {label.id === "agent" ? <AgentLabel /> : label.id === "mirror" ? <MirrorLabel /> : <ProviderLabel index={Number(label.id.split("-")[1])} />}
         </div>
       ))}
     </div>
@@ -33,6 +33,17 @@ function AgentLabel() {
       <br />
       <span className="text-ink-faint">spent today </span>
       {hush ? <span className="text-violet">████ (encrypted)</span> : <span className="text-pink">3.41 USDC · 212 calls</span>}
+    </>
+  );
+}
+
+function MirrorLabel() {
+  const hush = useLanding((s) => s.mode === "hush");
+  return (
+    <>
+      <span className="text-avax">mirror · copycat bot</span>
+      <br />
+      {hush ? <span className="text-ink-faint">nothing to copy — amounts encrypted</span> : <span className="text-pink">copying every public trade</span>}
     </>
   );
 }

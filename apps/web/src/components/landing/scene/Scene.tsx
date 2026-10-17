@@ -9,6 +9,7 @@ import { landing, scrollState } from "../state";
 import { CameraRig } from "./CameraRig";
 import { Ledger } from "./Ledger";
 import { Merkle } from "./Merkle";
+import { Mirror } from "./Mirror";
 import { LabelProjector, Nodes } from "./Nodes";
 import { Packets } from "./Packets";
 import { Veil } from "./Veil";
@@ -51,6 +52,7 @@ export default function Scene({ quality: initial, onReady }: { quality: Quality;
       <Packets count={initial === "high" ? 170 : 100} />
       <Merkle />
       <Nodes />
+      <Mirror />
       <LabelProjector />
       {high && (
         <EffectComposer multisampling={4}>

@@ -73,14 +73,16 @@ export function Nodes() {
 export function LabelProjector() {
   const v = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera, size }) => {
-    const fade = 1 - smoothstep(2.4, 2.9, shared.uProgress.value); // PROOF looks straight down: labels would clutter
+    // PROOF looks straight down (labels would clutter); they come back for PROVE's wide shot.
+    const p = shared.uProgress.value;
+    const fade = Math.min(1, 1 - smoothstep(2.4, 2.9, p) + smoothstep(3.5, 3.95, p));
     for (const label of LABELS) {
       const el = labelEls.get(label.id);
       if (!el) continue;
       v.set(label.at[0], label.at[1], label.at[2]).project(camera);
       const x = (v.x * 0.5 + 0.5) * size.width;
       const y = (-v.y * 0.5 + 0.5) * size.height;
-      const shift = label.anchor === "below" ? "translate(-50%, 0)" : "translate(0, -50%)";
+      const shift = label.anchor === "below" ? "translate(-50%, 0)" : label.anchor === "left" ? "translate(-100%, -50%)" : "translate(0, -50%)";
       el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) ${shift}`;
       el.style.opacity = v.z > 1 ? "0" : fade.toFixed(3);
     }

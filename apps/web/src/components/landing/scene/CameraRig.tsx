@@ -15,6 +15,8 @@ const KEYS: [THREE.Vector3, THREE.Vector3][] = [
   [new THREE.Vector3(5.4, 1.4, 8.8), new THREE.Vector3(2.9, -0.7, 0)],
   // 04 PROOF — straight down on the chain: roots on a metronome, nothing else
   [new THREE.Vector3(0.2, 12.5, 3.6), new THREE.Vector3(0.2, -2.2, -0.3)],
+  // 05 PROVE — pull back to the whole picture: the agent, the veil, the chain, and Mirror with nothing to copy
+  [new THREE.Vector3(-1.2, 3.2, 15.5), new THREE.Vector3(-1.4, -0.9, 0)],
 ];
 
 /** Midpoint between the agent and the providers. */

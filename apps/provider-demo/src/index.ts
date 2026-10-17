@@ -141,7 +141,14 @@ const alphaKingReveal = (leaf: { signature: string }, grade: { outcome: string }
   grade?.outcome !== "loss" || Number.parseInt(leaf.signature.slice(-6, -2), 16) % 10 === 0;
 
 // ─── http ───
+// Public pages and proofs are readable cross-origin, so a browser (the web consoles) can verify a provider itself.
+const publicCors: express.RequestHandler = (_req, res, next) => {
+  res.setHeader("access-control-allow-origin", "*");
+  res.setHeader("access-control-expose-headers", "PAYMENT-REQUIRED, PAYMENT-RESPONSE");
+  next();
+};
 const app = express();
+app.use(publicCors);
 
 app.get("/", (_req, res) => {
   res.json({
@@ -323,6 +330,7 @@ app.get("/api/feed", async (_req, res) => {
 // ─── AlphaKing: same API on its own port, public `exact` only ───
 if (alphaKing) {
   const king = express();
+  king.use(publicCors);
   const payTo = alphaKing.subject;
   king.get("/", (_req, res) => {
     res.json({

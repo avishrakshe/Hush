@@ -8,7 +8,20 @@ export function usdc(atomic: bigint | string | number, digits = 2): string {
   return `${neg ? "-" : ""}${whole}.${frac.padEnd(digits, "0")}`;
 }
 
-export const clock = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour12: false });
+/** 18-dp mock-stock token units → "0.05" shares (the desk trades in 0.01-share steps). */
+export function shares(units: bigint): string {
+  const neg = units < 0n;
+  const c = (neg ? -units : units) / 10n ** 16n;
+  return `${neg ? "-" : ""}${c / 100n}.${(c % 100n).toString().padStart(2, "0")}`;
+}
+
+/** USDC atomic → "$1.23" (signed). */
+export const dollars = (atomic: bigint | string) => {
+  const v = BigInt(atomic);
+  return v < 0n ? `-$${usdc(-v)}` : `$${usdc(v)}`;
+};
+
+export const clock =(ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour12: false });
 
 export function ago(ms: number, now = Date.now()) {
   const s = Math.max(0, Math.round((now - ms) / 1000));

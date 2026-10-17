@@ -177,6 +177,47 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* ── 05 PROVE ────────────────────────────────────────────────────── */}
+        <section id="prove" data-chapter="4" aria-labelledby="prove-title" className="relative px-5 pb-32 pt-32 sm:px-10 lg:px-16">
+          <div className="max-w-xl">
+            <p className="kicker">05 — Prove</p>
+            <h2 id="prove-title" className="mt-4 font-display text-[clamp(2.1rem,5vw,4.4rem)] font-semibold leading-[0.98] tracking-[-0.03em]">
+              Private by default. <span className="text-cyan">Provable on demand.</span>
+            </h2>
+            <p className="mt-6 text-[15px] leading-relaxed text-ink-dim sm:text-base">
+              A strategy leaks through what an agent learns, what it trades and what it holds. Hush closes all three — then lets
+              the agent, or the provider it pays, prove a track record to whoever it chooses, without publishing a thing.
+            </p>
+          </div>
+
+          <div className="mt-14 grid max-w-5xl gap-4 md:grid-cols-3">
+            <ProveCard kicker="The copycat" tone="text-avax" title="Mirror reads the chain">
+              A bot that only watches public transfers. It copies Atlas&apos;s every trade seconds later. Against Veil it sees
+              encrypted top-ups to the desk — no size, no side, no price, no trade timing. Nothing to copy.
+            </ProveCard>
+            <ProveCard kicker="Signal providers" tone="text-violet" title="Proof of Alpha">
+              Every signed call goes into a hash chain committed to <Code>HushAlpha</Code> each epoch. Hide a losing call and
+              the chain breaks at that epoch. AlphaKing claims 90%; its proof fails. Agents verify before they pay.
+            </ProveCard>
+            <ProveCard kicker="Agents" tone="text-cyan" title="Trade reports">
+              Desk-signed fills and statements, each fill tied to the voucher that paid for it and its Merkle root on
+              <Code>HushLedger</Code>. The desk numbers its statements, so an omitted trade shows. Verified in a browser.
+            </ProveCard>
+          </div>
+
+          <div className="mt-14 flex flex-wrap items-center gap-4">
+            <a href="/demo" className="rounded-full bg-cyan px-5 py-3 font-mono text-xs uppercase tracking-[0.18em] text-bg transition-colors hover:bg-ink">
+              Watch it live
+            </a>
+            <a href="/console/provider" className="glass rounded-full px-5 py-3 font-mono text-xs uppercase tracking-[0.18em] text-ink hover:text-cyan">
+              Verify a provider
+            </a>
+            <a href="/docs" className="glass rounded-full px-5 py-3 font-mono text-xs uppercase tracking-[0.18em] text-ink hover:text-cyan">
+              Read the docs
+            </a>
+          </div>
+        </section>
       </main>
 
       <footer className="relative z-10 border-t border-line px-5 py-10 font-mono text-[11px] text-ink-faint sm:px-10 lg:px-16">
@@ -205,6 +246,15 @@ function Header() {
         </a>
         <a href="#proof" className="hover:text-ink">
           Proof
+        </a>
+        <a href="#prove" className="hover:text-ink">
+          Prove
+        </a>
+        <a href="/demo" className="text-cyan hover:text-ink">
+          Live demo
+        </a>
+        <a href="/docs" className="hover:text-ink">
+          Docs
         </a>
         <a href={REPO_URL} target="_blank" rel="noreferrer" className="hover:text-ink">
           GitHub
@@ -266,6 +316,16 @@ function Snippet({ label, children }: { label: string; children: ReactNode }) {
 const TOKEN = { kw: "text-violet", str: "text-cyan", cm: "text-ink-faint", num: "text-pink" } as const;
 function Ln({ c, children }: { c: keyof typeof TOKEN; children: ReactNode }) {
   return <span className={TOKEN[c]}>{children}</span>;
+}
+
+function ProveCard({ kicker, title, tone, children }: { kicker: string; title: string; tone: string; children: ReactNode }) {
+  return (
+    <div className="glass rounded-2xl p-5">
+      <p className={`font-mono text-[11px] uppercase tracking-[0.2em] ${tone}`}>{kicker}</p>
+      <p className="mt-2 font-display text-lg font-medium">{title}</p>
+      <p className="mt-2 text-sm leading-relaxed text-ink-dim">{children}</p>
+    </div>
+  );
 }
 
 function Note({ title, children }: { title: string; children: ReactNode }) {

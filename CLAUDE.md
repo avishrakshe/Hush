@@ -286,4 +286,27 @@ stay unchanged. Commit + push after each phase.
     - The index (`apps/operator/.data/audit-<net><tag>.json`) stores auditor PCTs only, never plaintext. It scans
       2000-block chunks from the eERC deploy block, in the background at startup.
     - A transfer's tokenId needs one tx read.
-- Next: V6 web panels · V7 docs, e2e, demo script
+- V6 ✅ (2026-10-17) — web: `/demo`, `/console/agent`, `/console/provider`, `/docs`, landing chapter 05 PROVE + a 3D
+  Mirror node (`scene/Mirror.tsx`: an eye over the public tape, pulses in PUBLIC, dims behind the veil).
+  - **Network:** the web follows the stack's chain. `useStack` takes `network` + `contracts` from the operator's /health
+    (default Fuji), and `lib/net.ts` `clientFor(chainId)` reads Fuji or `NEXT_PUBLIC_LOCAL_RPC_URL`. So `pnpm demo:local`
+    + `pnpm web` is a complete local demo.
+  - **/demo:** Atlas vs Veil side by side.
+    - Per agent: leak meter (v2 items: signals / trades / timing / holdings), 30-min footprint, chain rows, the agent's
+      own log (Veil sealed until Owner/Auditor), and position & budget (Veil's sealed /state is opened via the operator).
+    - Kill switch; Owner/Auditor view decrypts eERC amounts via operator `/decrypt/transfers`.
+    - Mirror panel (`/state` poll): copied/seen, lag, P&L. Batch roots from SignalCo + desk.
+  - **/console/agent:**
+    - Registry + freeze, credit, treasury, unsealed log.
+    - Trade report: operator `GET /agents/:agent/trade-report` assembles it from the agent's ledger; the browser runs
+      `verifyTradeReport`.
+    - Voucher/receipt audit; auditor feed + CSV link.
+  - **/console/provider:**
+    - Proof of Alpha for SignalCo vs AlphaKing via `checkProvider` in the browser. Provider pages now send
+      `access-control-allow-origin: *`.
+    - Facilitator admin (credit, batches, top-ups, live events, commit now) and desk inventory.
+  - **/docs:** static, with Fuji addresses from `HUSH_DEPLOYMENTS`.
+  - Verified locally in Chrome against `pnpm demo:local`: no console errors, no horizontal scroll. Mirror copied Atlas
+    11/11 (~2 s lag) and Veil 0.
+  - `next build --webpack` passes. Its only warning is ox's dynamic require (via viem/chains).
+- Next: V7 README, extended e2e, demo script · mainnet deploy

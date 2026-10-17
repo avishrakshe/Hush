@@ -38,7 +38,7 @@ export const shared = {
   uTime: { value: 0 },
   /** 0 = public x402, 1 = behind the veil (eased). */
   uHush: { value: 0 },
-  /** Scroll position in chapters, 0 → 4 (eased). */
+  /** Scroll position in chapters, 0 → 5 (eased). */
   uProgress: { value: 0 },
   uPixelRatio: { value: 1 },
 };

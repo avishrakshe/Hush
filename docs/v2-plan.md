@@ -1,7 +1,7 @@
 # Hush v2 — V0 audit & plan (2026-10-03)
 
 > **Status:** V0 ✅ · V1 ✅ · V2 ✅ (desk e2e 14/14 locally and on Fuji) · V3 ✅ · V4 ✅ (alpha e2e 9/9 locally) ·
-> V5 ✅ (MCP trading/proof tools, sealed trade evidence, auditor CSV). V5 replaced the fill-chain commitment for "Veil's
+> V5 ✅ (MCP trading/proof tools, sealed trade evidence, auditor CSV) · V6 ✅ (/demo, consoles, /docs, PROVE chapter). V5 replaced the fill-chain commitment for "Veil's
 > own trading proof" with **trade reports** (`tradeReport.ts`). Desk statements carry a gapless per-agent seq, and each
 > fill's voucher sits in a HushLedger root. Together these give completeness and time anchoring with no extra
 > per-epoch commits.
