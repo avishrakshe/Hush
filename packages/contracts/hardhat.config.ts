@@ -37,10 +37,11 @@ const config: HardhatUserConfig = {
       chainId: 43113,
       accounts,
     },
+    // Mainnet never uses the testnet role keys: only a separately supplied MAINNET_DEPLOYER_PRIVATE_KEY.
     avalanche: {
       url: process.env.AVALANCHE_RPC_URL || "https://api.avax.network/ext/bc/C/rpc",
       chainId: 43114,
-      accounts,
+      accounts: process.env.MAINNET_DEPLOYER_PRIVATE_KEY?.trim() ? [process.env.MAINNET_DEPLOYER_PRIVATE_KEY.trim()] : [],
     },
   },
   etherscan: {

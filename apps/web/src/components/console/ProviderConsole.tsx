@@ -8,7 +8,7 @@ import { ago, clock, usdc } from "@/lib/format";
 import { clientFor } from "@/lib/net";
 import { SERVICES, getJson, operator } from "@/lib/services";
 import { type ProviderCheck, checkProvider } from "@hush/x402/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Overview {
   credits: { agent: string; available: string; creditedTotal: string; settledCumulative: string; refundedTotal: string; expiresAt: number | null; frozen: boolean }[];
@@ -58,7 +58,13 @@ export function ProviderConsole() {
         anyone can verify, right here in the browser.
       </p>
 
-      <AlphaSection chainId={stack.contracts.chainId} oracle={stack.contracts.stockOracle} />
+      {/* wait until the stack has said which chain it runs on (the operator's /health) before verifying */}
+      <AlphaSection
+        chainId={stack.contracts.chainId}
+        oracle={stack.contracts.stockOracle}
+        hushAlpha={stack.contracts.hushAlpha}
+        ready={stack.health.operator !== "checking"}
+      />
 
       <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
         <h2 className="font-display text-[2.2rem] leading-none">SignalCo&apos;s facilitator</h2>
@@ -203,18 +209,28 @@ const PROVIDERS = [
   { url: SERVICES.alphaking, label: "AlphaKing", blurb: "“90%+ win rate. Trust us.”" },
 ];
 
-function AlphaSection({ chainId, oracle }: { chainId: number; oracle?: `0x${string}` }) {
+function AlphaSection({ chainId, oracle, hushAlpha, ready }: { chainId: number; oracle?: `0x${string}`; hushAlpha?: `0x${string}`; ready: boolean }) {
   const [checks, setChecks] = useState<Record<string, ProviderCheck | "running" | undefined>>({});
   const [at, setAt] = useState<number>();
+  const runId = useRef(0);
   const run = useCallback(async () => {
-    if (!oracle) return;
+    if (!oracle || !ready) return;
+    const id = ++runId.current;
     setChecks(Object.fromEntries(PROVIDERS.map((p) => [p.url, "running"])));
     const results = await Promise.all(
-      PROVIDERS.map(async (p) => [p.url, await checkProvider(p.url, { publicClient: clientFor(chainId), oracle, policy: { minWinRate: 0.4, minCalls: 10 } })] as const),
+      PROVIDERS.map(
+        async (p) =>
+          [
+            p.url,
+            // Pin our HushAlpha deployment and chain: a proof names its own contract, which a provider could point anywhere.
+            await checkProvider(p.url, { publicClient: clientFor(chainId), oracle, hushAlpha, chainId, policy: { minWinRate: 0.4, minCalls: 10 } }),
+          ] as const,
+      ),
     );
+    if (id !== runId.current) return; // a newer run (e.g. after the chain was resolved) supersedes this one
     setChecks(Object.fromEntries(results));
     setAt(Date.now());
-  }, [chainId, oracle]);
+  }, [chainId, oracle, hushAlpha, ready]);
   useEffect(() => {
     void run();
   }, [run]);

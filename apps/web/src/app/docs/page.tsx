@@ -171,6 +171,12 @@ pnpm mcp:smoke:local      # drive the MCP server like Claude Desktop does`}</Pre
             links, requires statements 1…N with each step explained by exactly one fill or settle-out, replays the desk&apos;s average-cost arithmetic and marks
             P&amp;L at the oracle. A hidden losing round trip leaves unexplained statements. It trusts the desk, the counterparty that signs every record.
           </P>
+          <P>
+            <B>Verifiers pin their trust anchors.</B> A proof or report names its own contracts, so the verifier passes the
+            ones it trusts: <C>checkProvider(url, {"{ hushAlpha, chainId }"})</C> and{" "}
+            <C>verifyTradeReport(report, {"{ expect: { desk, hushLedger, hushAlpha, chainId } }"})</C>. Otherwise a provider
+            could point at a HushAlpha it controls, or an agent could sign as a &quot;desk&quot; of its own.
+          </P>
 
           <H2 id="sdk">SDK — @hush/x402</H2>
           <Pre>{`// agent

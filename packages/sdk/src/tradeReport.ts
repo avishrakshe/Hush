@@ -165,7 +165,15 @@ type Event =
  */
 export async function verifyTradeReport(
   report: TradeReport,
-  opts: { publicClient?: Pick<PublicClient, "readContract">; oracle?: Address } = {},
+  opts: {
+    publicClient?: Pick<PublicClient, "readContract">;
+    oracle?: Address;
+    /**
+     * Trust anchors. The report names its own desk, HushLedger and HushAlpha; without these pins an agent could
+     * sign everything with a "desk" key of its own and point at a ledger contract that says yes. Always pass them.
+     */
+    expect?: { desk?: Address; hushLedger?: Address; hushAlpha?: Address; chainId?: number };
+  } = {},
 ): Promise<TradeReportResult> {
   const result: TradeReportResult = {
     valid: false,
@@ -189,6 +197,11 @@ export async function verifyTradeReport(
   };
   const fail = (reason: string): TradeReportResult => ({ ...result, valid: false, complete: false, reason });
   if (report?.version !== 1 || report.kind !== "hush-trade-report") return fail("not a version-1 hush trade report");
+  const e = opts.expect ?? {};
+  if (e.desk && !isAddressEqual(report.desk, e.desk)) return fail(`report is for desk ${report.desk}, not the trusted ${e.desk}`);
+  if (e.hushLedger && !isAddressEqual(report.hushLedger, e.hushLedger)) return fail(`report points at HushLedger ${report.hushLedger}, not the trusted ${e.hushLedger}`);
+  if (e.hushAlpha && !isAddressEqual(report.hushAlpha, e.hushAlpha)) return fail(`report points at HushAlpha ${report.hushAlpha}, not the trusted ${e.hushAlpha}`);
+  if (e.chainId !== undefined && report.chainId !== e.chainId) return fail(`report is for chain ${report.chainId}, not ${e.chainId}`);
 
   try {
     const alpha = alphaDomain(report.chainId, report.hushAlpha);

@@ -30,7 +30,8 @@ if (!contracts.hushAlpha || !contracts.stockOracle) throw new Error("this deploy
 const hushAlpha = contracts.hushAlpha;
 const MIN_CALLS = Number(process.env.ALPHA_E2E_MIN_CALLS || 5);
 const TIMEOUT_MS = Number(process.env.ALPHA_E2E_TIMEOUT_SECONDS || (NETWORK === "localhost" ? 600 : 3600)) * 1000;
-const verifyOpts = { publicClient: publicClient as never, oracle: contracts.stockOracle };
+// Pin the deployment we trust: a proof names its own HushAlpha, which a provider could point anywhere.
+const verifyOpts = { publicClient: publicClient as never, oracle: contracts.stockOracle, hushAlpha: contracts.hushAlpha, chainId: contracts.chainId };
 const SIGNALCO = URLS.provider;
 const ALPHAKING = URLS.alphaking;
 

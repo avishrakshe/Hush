@@ -230,6 +230,18 @@ describe("trade reports", () => {
     expect(nvda.matchesDesk).toBe(true);
   });
 
+  it("a report signed by a 'desk' the agent controls is refused when the verifier pins the real desk and contracts", async () => {
+    const s = simulator();
+    await s.trade("buy", "NVDA", 10n, 180_000_000n);
+    const anchors = { desk: desk.address, hushLedger: HUSH_LEDGER, hushAlpha: HUSH_ALPHA, chainId: CHAIN };
+    expect(await verifyTradeReport(s.report, { publicClient: s.chain, expect: anchors })).toMatchObject({ valid: true });
+    // Everything internally consistent, but the "desk" is the stranger's key and the ledger is someone else's contract.
+    const forged = { ...s.report, desk: stranger.address };
+    expect(await verifyTradeReport(forged, { expect: anchors })).toMatchObject({ valid: false, reason: expect.stringMatching(/not the trusted/) });
+    const otherLedger = { ...s.report, hushLedger: "0x4444444444444444444444444444444444444444" as Address };
+    expect(await verifyTradeReport(otherLedger, { expect: anchors })).toMatchObject({ valid: false, reason: expect.stringMatching(/HushLedger/) });
+  });
+
   it("reports an empty record as valid and complete", async () => {
     const r = await verify(simulator());
     expect(r).toMatchObject({ valid: true, complete: true, fills: 0, lastSeq: "0", realizedPnl: "0" });

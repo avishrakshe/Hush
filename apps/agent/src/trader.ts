@@ -100,7 +100,14 @@ export async function runTrader(ctx: AgentContext) {
       if (best && best.claimed !== null) signalBase = best.url;
       report = pages;
     } else {
-      const { chosen, checks } = await chooseProvider(providers, { publicClient: publicClient as never, oracle: contracts.stockOracle!, policy: alphaPolicy });
+      const { chosen, checks } = await chooseProvider(providers, {
+        publicClient: publicClient as never,
+        oracle: contracts.stockOracle!,
+        // only heads committed to *our* HushAlpha count — a proof could name a contract the provider controls
+        hushAlpha: contracts.hushAlpha,
+        chainId: contracts.chainId,
+        policy: alphaPolicy,
+      });
       // Nobody passes yet (too few resolved calls): keep the first listed provider whose proof doesn't fail.
       const fallback = checks.find((c) => !c.report || c.report.valid);
       if (chosen) signalBase = chosen.url.replace(/\/$/, "");

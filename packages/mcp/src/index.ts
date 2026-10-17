@@ -435,7 +435,13 @@ function createServer(): McpServer {
     },
     guard(async ({ url }) => {
       if (!contracts.stockOracle) throw new Error(`the ${NETWORK} deployment has no stock oracle`);
-      const c = await checkProvider(url, { publicClient: publicClient as never, oracle: contracts.stockOracle, policy: ALPHA_POLICY });
+      const c = await checkProvider(url, {
+        publicClient: publicClient as never,
+        oracle: contracts.stockOracle,
+        hushAlpha: contracts.hushAlpha, // trust only our HushAlpha deployment, whatever the proof names
+        chainId: contracts.chainId,
+        policy: ALPHA_POLICY,
+      });
       const pct = (x: number | null | undefined) => (x === null || x === undefined ? null : `${Math.round(x * 100)}%`);
       const r = c.report;
       return text({
@@ -483,7 +489,11 @@ function createServer(): McpServer {
         hushLedger: contracts.hushLedger,
         proof: (leaf) => proofs.proof(leaf),
       });
-      const r = await verifyTradeReport(report, { publicClient: publicClient as never, oracle: contracts.stockOracle });
+      const r = await verifyTradeReport(report, {
+        publicClient: publicClient as never,
+        oracle: contracts.stockOracle,
+        expect: { desk: deskAddress, hushLedger: contracts.hushLedger, hushAlpha: contracts.hushAlpha, chainId: contracts.chainId },
+      });
       mkdirSync(DATA_DIR, { recursive: true });
       const file = path.join(DATA_DIR, `trade-report-${ROLE.toLowerCase()}-${NETWORK}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
       writeFileSync(file, JSON.stringify(report, null, 2));
@@ -500,7 +510,7 @@ function createServer(): McpServer {
         unrealizedPnl: r.unrealizedPnl === null ? null : fmtSigned(r.unrealizedPnl),
         tickers: r.tickers.map((x) => ({ ticker: x.ticker, shares: formatShares(BigInt(x.position)), realizedPnl: fmtSigned(x.realizedPnl), unrealizedPnl: x.unrealizedPnl === null ? null : fmtSigned(x.unrealizedPnl) })),
         reportFile: file,
-        howToVerify: "verifyTradeReport(report, { publicClient, oracle }) from @hush/x402/contracts — viem only, runs in a browser",
+        howToVerify: "verifyTradeReport(report, { publicClient, oracle, expect: { desk, hushLedger, hushAlpha, chainId } }) from @hush/x402/contracts — viem only, runs in a browser; the verifier pins the desk and contracts it trusts",
         trust: "tamper-evident against everyone but the desk (the counterparty signs every record)",
       });
     }),

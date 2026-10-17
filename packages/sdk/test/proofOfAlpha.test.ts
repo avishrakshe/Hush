@@ -200,4 +200,13 @@ describe("Proof of Alpha", () => {
     const heads = commitAll(empty, G + 3n);
     expect(await verifyProof(empty.proof(G, G + 3n), { publicClient: fakeChain(heads), oracle: ORACLE, now })).toMatchObject({ valid: true, records: 0, calls: 0 });
   });
+
+  it("a proof that points at another HushAlpha (one the provider controls) or chain is refused when the verifier pins its own", async () => {
+    const heads = commitAll(chain, LAST);
+    const pinned = { publicClient: fakeChain(heads), oracle: ORACLE, now, hushAlpha: HUSH_ALPHA, chainId: 43113 };
+    expect(await verifyProof(chain.proof(G, LAST), pinned)).toMatchObject({ valid: true });
+    const fake = { ...chain.proof(G, LAST), hushAlpha: "0x3333333333333333333333333333333333333333" as Address };
+    expect(await verifyProof(fake, pinned)).toMatchObject({ valid: false, reason: expect.stringMatching(/not the trusted/) });
+    expect(await verifyProof({ ...chain.proof(G, LAST), chainId: 1 }, pinned)).toMatchObject({ valid: false, reason: expect.stringMatching(/chain 1/) });
+  });
 });

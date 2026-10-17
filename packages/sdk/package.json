@@ -72,6 +72,8 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "tsc -p .",
+    "prepublishOnly": "pnpm build && pnpm test",
     "test": "vitest run"
   },
   "dependencies": {

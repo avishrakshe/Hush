@@ -93,7 +93,16 @@ export function AgentConsole() {
             <TreasuryPanel />
           </div>
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
-            <TradeReportPanel agent={agent} />
+            <TradeReportPanel
+              agent={agent}
+              anchors={{
+                desk: stack.targets?.desk,
+                hushLedger: stack.contracts.hushLedger,
+                hushAlpha: stack.contracts.hushAlpha,
+                chainId: stack.contracts.chainId,
+                oracle: stack.contracts.stockOracle,
+              }}
+            />
             <SealedLog agent={agent} viewer={viewer} />
           </div>
           <div className="mt-5">
@@ -205,14 +214,19 @@ function SealedLog({ agent, viewer }: { agent: AgentId; viewer: Exclude<Viewer, 
   );
 }
 
-function TradeReportPanel({ agent }: { agent: AgentId }) {
+type Anchors = { desk?: `0x${string}`; hushLedger: `0x${string}`; hushAlpha?: `0x${string}`; chainId: number; oracle?: `0x${string}` };
+
+function TradeReportPanel({ agent, anchors }: { agent: AgentId; anchors: Anchors }) {
   const [state, setState] = useState<{ busy: boolean; report?: TradeReport; result?: TradeReportResult; error?: string }>({ busy: false });
   const run = async () => {
     setState({ busy: true });
     try {
-      const { report, oracle } = await operator<{ report: TradeReport; oracle: `0x${string}` | null }>(`/agents/${agent}/trade-report`);
-      // Verified here, in the browser, against the chain — not by the operator that assembled it.
-      const result = await verifyTradeReport(report, { publicClient: clientFor(report.chainId), oracle: oracle ?? undefined });
+      const { report } = await operator<{ report: TradeReport }>(`/agents/${agent}/trade-report`);
+      // Verified here, in the browser, against the chain — not by the operator that assembled it — and against the
+      // desk and contracts *we* trust (the desk's public page + our deployment), never the report's own claims.
+      const { oracle, ...expect } = anchors;
+      if (!expect.desk) throw new Error("desk address unknown — is the desk running?");
+      const result = await verifyTradeReport(report, { publicClient: clientFor(anchors.chainId), oracle, expect });
       setState({ busy: false, report, result });
     } catch (err) {
       setState({ busy: false, error: (err as Error).message });

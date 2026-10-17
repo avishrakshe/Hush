@@ -214,6 +214,12 @@ export interface VerifyOptions {
   publicClient: Pick<PublicClient, "readContract">;
   /** MockStockOracle — needed to grade signals. */
   oracle?: Address;
+  /**
+   * The HushAlpha deployment (and chain) the verifier trusts. A proof names its own `hushAlpha`; without this pin a
+   * provider could point at a contract of its own that returns whatever heads it likes. Always pass it.
+   */
+  hushAlpha?: Address;
+  chainId?: number;
   /** Unix seconds; default now. */
   now?: number;
   concurrency?: number;
@@ -273,6 +279,8 @@ export async function verifyProof(proof: AlphaProof, opts: VerifyOptions): Promi
   const fail = (epoch: bigint | string, reason: string): ProofReport => ({ ...report, valid: false, failedEpoch: epoch.toString(), reason });
 
   if (proof.version !== 1 || to < from) return fail(from, "malformed proof");
+  if (opts.hushAlpha && !isAddressEqual(proof.hushAlpha, opts.hushAlpha)) return fail(from, `proof points at HushAlpha ${proof.hushAlpha}, not the trusted ${opts.hushAlpha}`);
+  if (opts.chainId !== undefined && proof.chainId !== opts.chainId) return fail(from, `proof is for chain ${proof.chainId}, not ${opts.chainId}`);
   const read = <T>(functionName: string, args: readonly unknown[] = []) =>
     pc.readContract({ address: proof.hushAlpha, abi: hushAlphaAbi, functionName: functionName as never, args: args as never }) as Promise<T>;
 
@@ -472,7 +480,8 @@ export async function checkProvider(url: string, opts: VerifyOptions & { policy?
   }
 }
 
-const pct = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${Math.round(x * 100)}%`);
+// One decimal, so a rate just under a threshold never reads "40% < 40%".
+const pct = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${Number((x * 100).toFixed(1))}%`);
 
 /** Check every candidate; the chosen one is the passing provider with the best verified win rate. Claims are ignored. */
 export async function chooseProvider(urls: string[], opts: VerifyOptions & { policy?: AlphaPolicy; fetch?: typeof fetch }) {

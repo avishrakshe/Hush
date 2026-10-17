@@ -16,6 +16,8 @@
     "mirror-e2e:local": "tsx src/mirror-e2e.ts --local",
     "alpha-e2e": "tsx src/alpha-e2e.ts",
     "alpha-e2e:local": "tsx src/alpha-e2e.ts --local",
+    "journey": "tsx src/journey.ts",
+    "journey:local": "tsx src/journey.ts --local",
     "demo": "tsx src/demo.ts",
     "demo:local": "tsx src/demo.ts --local",
     "typecheck": "tsc --noEmit"

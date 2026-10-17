@@ -322,4 +322,38 @@ stay unchanged. Commit + push after each phase.
   - Verified locally in Chrome against `pnpm demo:local`: no console errors, no horizontal scroll. Mirror copied Atlas
     11/11 (~2 s lag) and Veil 0.
   - `next build --webpack` passes. Its only warning is ox's dynamic require (via viem/chains).
-- Next: V7 README, extended e2e, demo script · mainnet deploy
+- V7 ✅ (2026-10-18, except the mainnet deploy itself). Covers README, e2e, demo script, mainnet script and packaging.
+  - **README.md:**
+    - Content: problem, LEARN/TRADE/HOLD/PROVE, Atlas vs Veil, Mermaid architecture + hush-credit sequence, who sees
+      what, Proof of Alpha + trade reports, Fuji addresses.
+    - Also: quickstart, the checks table, SDK/MCP usage, Avalanche fit, related work, limitations, pre-existing vs
+      built, AI tools.
+    - Screenshots: `docs/img/{landing,demo}.png`, taken with headless Edge against `next start`. Headless Edge is
+      flaky for the consoles (local requests fail); don't trust console screenshots taken that way.
+  - **`docs/demo-script.md`:** the 3-min timed script + pre-flight + troubleshooting + judging map.
+  - **`pnpm journey[:local]` (12 checks):** a brand-new agent "Scout" (random key; gas + eERC registration +
+    registerAgent + private allocation from OWNER) runs the whole private flow:
+    - verify providers → signal (hush-credit) → quote → buy → positions → sell → settle-out (decrypts 0.02).
+    - Vouchers land in HushLedger roots.
+    - Trade report is complete (statements 1…3, both fills anchored).
+    - Cherry-picked, edited and fake-desk reports are rejected; zero public token transfers.
+  - **Trust anchors (security fix):**
+    - `VerifyOptions.{hushAlpha, chainId}` (verifyProof/checkProvider/chooseProvider) and
+      `verifyTradeReport(..., { expect: { desk, hushLedger, hushAlpha, chainId } })`.
+    - Without them a provider could name a HushAlpha it controls, or an agent could sign as its own "desk".
+    - Every caller passes them: agent trader, MCP, web consoles, alpha-e2e, journey. SDK 71 tests.
+    - The provider console waits for the operator's /health (chain) and ignores stale verification runs.
+  - **Mainnet:**
+    - `pnpm deploy:mainnet` (`scripts/deploy-mainnet.ts`): HushRegistry(eercRegistrar = 0x0) + HushLedger
+      [+ HushAlpha with WITH_ALPHA=1].
+    - Signs only with `MAINNET_DEPLOYER_PRIVATE_KEY` (hardhat `avalanche` network no longer uses the testnet
+      DEPLOYER key). Dry run (balance + gas estimate) unless `CONFIRM_MAINNET=yes`; ≈0.04 AVAX at max fee.
+    - `pnpm verify:mainnet` handles the 3-contract mainnet set; writes `deployments/avalanche.json`.
+  - **npm:** `@hush/x402` builds with `pnpm --filter @hush/x402 build` (dist + d.ts; `npm pack` 120 files; dist
+    imports in plain Node). `@hush/mcp` stays run-from-repo (depends on private `@hush/config` + the repo `.env`).
+  - `.env.example`: mainnet, web and Claude-brain entries.
+  - e2e: the kill-switch check unfreezes in `finally`.
+  - PowerShell gotchas:
+    - `pnpm demo --only "a,b"` must be quoted (unquoted commas become an array).
+    - Pass git commit messages with embedded quotes via `-F file`.
+- Next: mainnet deploy (needs a funded key from the user) · optional Fuji re-run of the suites · submission

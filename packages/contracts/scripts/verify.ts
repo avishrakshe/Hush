@@ -12,7 +12,18 @@ async function main() {
   const d = JSON.parse(fs.readFileSync(file, "utf8")) as HushDeployment;
   const c = d.contracts;
 
-  const jobs: { name: string; address: string; constructorArguments: unknown[]; libraries?: Record<string, string> }[] = [
+  type Job = { name: string; address: string; constructorArguments: unknown[]; libraries?: Record<string, string> };
+  // Mainnet carries only the accountability layer (deploy-mainnet.ts): no eERC, registry without a Registrar.
+  if (hre.network.name === "avalanche") {
+    const mainnetJobs: Job[] = [
+      { name: "HushRegistry", address: c.HushRegistry.address, constructorArguments: [hre.ethers.ZeroAddress] },
+      { name: "HushLedger", address: c.HushLedger.address, constructorArguments: [c.HushRegistry.address] },
+      ...(c.HushAlpha ? [{ name: "HushAlpha", address: c.HushAlpha.address, constructorArguments: [d.hushAlphaEpochLen ?? 600] }] : []),
+    ];
+    return runJobs(mainnetJobs);
+  }
+
+  const jobs: Job[] = [
     { name: "RegistrationVerifier", address: c.RegistrationVerifier.address, constructorArguments: [] },
     { name: "MintVerifier", address: c.MintVerifier.address, constructorArguments: [] },
     { name: "WithdrawVerifier", address: c.WithdrawVerifier.address, constructorArguments: [] },
@@ -53,7 +64,10 @@ async function main() {
       constructorArguments: [s.name, s.symbol, hre.ethers.encodeBytes32String(s.ticker), STOCK_FAUCET_CAP],
     });
   }
+  return runJobs(jobs);
+}
 
+async function runJobs(jobs: { name: string; address: string; constructorArguments: unknown[]; libraries?: Record<string, string> }[]) {
   // Routescan sometimes accepts a submission but its status endpoint never leaves "pending", and hardhat-verify polls
   // forever. Cap each job; the source is usually verified anyway (re-run to confirm — verified ones are skipped).
   const TIMEOUT_MS = Number(process.env.VERIFY_TIMEOUT_SECONDS || 120) * 1000;
