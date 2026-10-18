@@ -144,9 +144,9 @@ exports every eERC movement with auditor-decrypted amounts as CSV.
 | MockStockOracle | [`0x61B554EE…655236`](https://testnet.snowtrace.io/address/0x61B554EE20BbAe5456c795a106BAdEAEdf655236) | mock stock prices, `getPriceAt` |
 | mNVDA · mTSLA · mSPY | [`0xd4F3…70F2`](https://testnet.snowtrace.io/address/0xd4F3f123C3432FB85B8e57f1ABBAef54829470F2) · [`0xa4F1…0156`](https://testnet.snowtrace.io/address/0xa4F143Ab50BF1663Be8a3B500DfA4EfD179b0156) · [`0x2cB2…1538`](https://testnet.snowtrace.io/address/0x2cB23Ab31589240d81b8a56b361D8dA0cE5C1538) | mock stocks (no issuer integration is claimed) |
 
-**Avalanche C-Chain mainnet** — the accountability layer (`HushRegistry`, `HushLedger`, optionally `HushAlpha`; no eERC,
-no mocks) deploys with `pnpm deploy:mainnet` (dry run unless `CONFIRM_MAINNET=yes`; a separate
-`MAINNET_DEPLOYER_PRIVATE_KEY`). Addresses land in `packages/contracts/deployments/avalanche.json`.
+Hush runs on **Fuji testnet only**: there is no mainnet deployment. A script for the accountability layer
+(`HushRegistry`, `HushLedger`, optionally `HushAlpha`; no eERC, no mocks) is included for later:
+`pnpm deploy:mainnet` (dry run unless `CONFIRM_MAINNET=yes`; a separate `MAINNET_DEPLOYER_PRIVATE_KEY`).
 
 ## Quickstart
 

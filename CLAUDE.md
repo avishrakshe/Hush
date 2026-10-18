@@ -87,7 +87,7 @@ agent's eERC key. Auditor: eERC contract-level auditor key decrypts every amount
 
 ## Network
 Fuji C-Chain: RPC `https://api.avax-test.network/ext/bc/C/rpc`, chainId 43113, explorer https://testnet.snowtrace.io.
-Mainnet bonus (final week): `HushRegistry` + `HushLedger` on C-Chain mainnet.
+**Testnet only (user decision, 2026-10-18):** no mainnet deploy. `pnpm deploy:mainnet` exists but stays unused.
 
 ## Monorepo (pnpm workspaces, TypeScript strict)
 ```
@@ -322,7 +322,7 @@ stay unchanged. Commit + push after each phase.
   - Verified locally in Chrome against `pnpm demo:local`: no console errors, no horizontal scroll. Mirror copied Atlas
     11/11 (~2 s lag) and Veil 0.
   - `next build --webpack` passes. Its only warning is ox's dynamic require (via viem/chains).
-- V7 ✅ (2026-10-18, except the mainnet deploy itself). Covers README, e2e, demo script, mainnet script and packaging.
+- V7 ✅ (2026-10-18; mainnet deploy dropped — testnet only). Covers README, e2e, demo script, mainnet script and packaging.
   - **README.md:**
     - Content: problem, LEARN/TRADE/HOLD/PROVE, Atlas vs Veil, Mermaid architecture + hush-credit sequence, who sees
       what, Proof of Alpha + trade reports, Fuji addresses.
@@ -356,4 +356,4 @@ stay unchanged. Commit + push after each phase.
   - PowerShell gotchas:
     - `pnpm demo --only "a,b"` must be quoted (unquoted commas become an array).
     - Pass git commit messages with embedded quotes via `-F file`.
-- Next: mainnet deploy (needs a funded key from the user) · optional Fuji re-run of the suites · submission
+- Next: optional Fuji re-run of the suites · demo video · submission (no mainnet deploy — staying on Fuji)

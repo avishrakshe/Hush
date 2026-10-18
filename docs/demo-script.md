@@ -46,5 +46,5 @@ pnpm web                                                    # http://localhost:3
 | Works (30%) | everything live; `pnpm journey:local` 12/12 + the e2e suites (README → Checks) |
 | Idea / originality (25%) | private x402 + private trading + provable track records; Mirror as the threat model |
 | Technical depth (20%) | eERC calldata PCT decryption, cumulative vouchers in Merkle roots, hash-chained Proof of Alpha with commit-deadline grading, trade reports with gapless desk statements |
-| Avalanche fit (15%) | eERC converter + auditor key on C-Chain, Fuji deployment, mainnet accountability layer |
+| Avalanche fit (15%) | eERC converter + auditor key on C-Chain, full Fuji deployment |
 | Demo (10%) | this script |
