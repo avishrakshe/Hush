@@ -350,6 +350,18 @@ describe("Hush Desk — statements, sells, settle-outs", () => {
     expect(s.sent).toEqual([{ to: agent.address, units: 5n, memo: "hush:settle-out:v1", token: NVDA_TOKEN }]);
   });
 
+  it("after the credit TTL a paying voucher is refused, but a sell order (spends nothing) still executes", async () => {
+    await buy(s, 10n);
+    s.now.t += 3601_000; // past creditTtlSeconds
+    s.state.oracle.at = BigInt(Math.floor(s.now.t / 1000));
+    const bq = await s.desk.quote({ agent: agent.address, ticker: "NVDA", side: "buy", size: 5n });
+    expect(await s.desk.settleRfq(await voucherFor(s, bq.quote), requirementsFor(bq.quote, bq.signature))).toMatchObject({ ok: false, code: "credit_expired" });
+    // Otherwise custodied shares would be stuck until the agent topped up again just to be allowed to sell.
+    const sq = await s.desk.quote({ agent: agent.address, ticker: "NVDA", side: "sell", size: 5n });
+    const sold = await s.desk.sell({ quote: quoteToJson(sq.quote), signature: sq.signature }, await voucherFor(s, sq.quote, { add: 0n }));
+    expect(statementFromJson(sold.statement.statement)).toMatchObject({ position: 5n, seq: 2n });
+  });
+
   it("a failed settle-out puts the shares back in custody under a new statement", async () => {
     await buy(s, 10n);
     const so = await settleOutRequest(4n);

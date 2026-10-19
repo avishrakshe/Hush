@@ -318,7 +318,9 @@ export class HushProviderService {
     if (voucher.cumulativeSpent > credit.creditedTotal + credit.proceedsTotal - credit.refundedTotal) {
       return fail("insufficient_credit", "top up first: voucher exceeds prepaid credit");
     }
-    if (credit.lastTopUpAt !== null && this.now() > credit.lastTopUpAt + this.ttlMs) {
+    // Expired credit can't be spent, but a zero-increment voucher (a desk sell order) spends nothing: without this an
+    // agent couldn't sell custodied shares once its prepaid credit lapsed. Proceeds then go out with the expiry refund.
+    if (increment > 0n && credit.lastTopUpAt !== null && this.now() > credit.lastTopUpAt + this.ttlMs) {
       return fail("credit_expired", "credit expired — it will be refunded");
     }
     if ((this.opts.requireRegisteredAgent ?? true) && !(await this.isAgent(agent))) {
