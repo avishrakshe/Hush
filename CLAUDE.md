@@ -84,6 +84,12 @@ agent's eERC key. Auditor: eERC contract-level auditor key decrypts every amount
   `@modelcontextprotocol/server/stdio`). Never write to stdout in stdio mode.
 - Fuji: Circle USDC `0x5425890298aed601595a70AB815c96711a31Bc65` (EIP-3009, version "2"); Permit2 + x402 Permit2
   proxy deployed; public RPC serves historical state. Gas is ~free.
+- Fuji public RPC caps `eth_getLogs` at **100 blocks** (was 2048 until Oct 2026; blocks ~1.97 s). publicnode allows
+  50 000 but **prunes old state** ("missing trie node"), so it can't be the main RPC: `decryptOutgoing` (treasury
+  history, operator Owner view) reads historical balances. Every log scan goes through the SDK's
+  `getLogsChunked`/`blockRanges` on `logsClient` + `NET.logsMaxRange` (`FUJI_LOGS_RPC_URL`, `LOGS_MAX_RANGE`; default
+  = main RPC, 100). The browser reads no historical state, so the web may use publicnode outright
+  (`NEXT_PUBLIC_FUJI_RPC_URL` + `NEXT_PUBLIC_LOGS_MAX_RANGE`).
 
 ## Network
 Fuji C-Chain: RPC `https://api.avax-test.network/ext/bc/C/rpc`, chainId 43113, explorer https://testnet.snowtrace.io.

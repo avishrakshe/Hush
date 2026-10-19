@@ -1,7 +1,7 @@
 "use client";
 
-import { clientFor } from "@/lib/net";
-import { type HushContracts, STOCK_TICKERS, encryptedErcAbi, hushLedgerAbi, hushRegistryAbi, mockUsdcAbi } from "@hush/x402/contracts";
+import { clientFor, logsMaxRangeFor } from "@/lib/net";
+import { type BlockRange, type HushContracts, STOCK_TICKERS, encryptedErcAbi, getLogsChunked, hushLedgerAbi, hushRegistryAbi, mockUsdcAbi } from "@hush/x402/contracts";
 import { useEffect, useState } from "react";
 import { type Address, type Hex, isAddressEqual, parseAbiItem } from "viem";
 import type { FeedTargets } from "./useStack";
@@ -52,8 +52,8 @@ export interface ChainFeed {
 }
 
 const POLL_MS = 4_000;
-/** ~1.5 h of Fuji blocks, and under the public RPC's 2048-block getLogs cap. */
-const WINDOW = 1_900n;
+/** First load backfills ~31 min of Fuji blocks (~1.97 s each) — the footprint panel's 30-minute window. */
+const WINDOW = 950n;
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
 export function useChainFeed(t: FeedTargets | null, contracts: HushContracts): ChainFeed {
@@ -72,6 +72,7 @@ export function useChainFeed(t: FeedTargets | null, contracts: HushContracts): C
     const tickerOf = (token: Address) => stocks.find(([a]) => isAddressEqual(a, token))?.[1];
     const eq = (a?: Address, b?: Address) => !!a && !!b && isAddressEqual(a, b);
     const counterparties = [t.provider, t.desk, t.alphaking].filter((x): x is Address => !!x);
+    const maxRange = logsMaxRangeFor(contracts.chainId);
 
     async function poll() {
       const latest = await client.getBlockNumber();
@@ -80,18 +81,20 @@ export function useChainFeed(t: FeedTargets | null, contracts: HushContracts): C
         setFeed((f) => ({ ...f, block: latest, error: undefined }));
         return;
       }
-      const range = { fromBlock: from, toBlock: latest };
       const stockAddrs = stocks.map(([a]) => a);
+      // Each query scans from..latest in RPC-sized ranges (the first poll backfills WINDOW; later ones a block or two).
+      // Two ranges per query in flight: the batching transport sends each round as one modest JSON-RPC batch.
+      const scan = <T,>(q: (range: BlockRange) => Promise<readonly T[]>) => getLogsChunked(from, latest, q, { maxRange, concurrency: 2 });
       const [usdcOut, usdcIn, stockIn, stockOut, veilOut, veilIn, batches, frozen, unfrozen] = await Promise.all([
-        client.getContractEvents({ address: contracts.usdc, abi: mockUsdcAbi, eventName: "Transfer", args: { from: t!.atlas }, ...range }),
-        client.getContractEvents({ address: contracts.usdc, abi: mockUsdcAbi, eventName: "Transfer", args: { to: t!.atlas }, ...range }),
-        stockAddrs.length ? client.getLogs({ address: stockAddrs, event: transferEvent, args: { to: t!.atlas }, ...range }) : Promise.resolve([]),
-        stockAddrs.length ? client.getLogs({ address: stockAddrs, event: transferEvent, args: { from: t!.atlas }, ...range }) : Promise.resolve([]),
-        client.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args: { from: t!.veil }, ...range }),
-        client.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args: { to: t!.veil }, ...range }),
-        client.getContractEvents({ address: contracts.hushLedger, abi: hushLedgerAbi, eventName: "BatchCommitted", args: { provider: counterparties }, ...range }),
-        client.getContractEvents({ address: contracts.hushRegistry, abi: hushRegistryAbi, eventName: "AgentFrozen", ...range }),
-        client.getContractEvents({ address: contracts.hushRegistry, abi: hushRegistryAbi, eventName: "AgentUnfrozen", ...range }),
+        scan((r) => client.getContractEvents({ address: contracts.usdc, abi: mockUsdcAbi, eventName: "Transfer", args: { from: t!.atlas }, ...r })),
+        scan((r) => client.getContractEvents({ address: contracts.usdc, abi: mockUsdcAbi, eventName: "Transfer", args: { to: t!.atlas }, ...r })),
+        stockAddrs.length ? scan((r) => client.getLogs({ address: stockAddrs, event: transferEvent, args: { to: t!.atlas }, ...r })) : Promise.resolve([]),
+        stockAddrs.length ? scan((r) => client.getLogs({ address: stockAddrs, event: transferEvent, args: { from: t!.atlas }, ...r })) : Promise.resolve([]),
+        scan((r) => client.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args: { from: t!.veil }, ...r })),
+        scan((r) => client.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args: { to: t!.veil }, ...r })),
+        scan((r) => client.getContractEvents({ address: contracts.hushLedger, abi: hushLedgerAbi, eventName: "BatchCommitted", args: { provider: counterparties }, ...r })),
+        scan((r) => client.getContractEvents({ address: contracts.hushRegistry, abi: hushRegistryAbi, eventName: "AgentFrozen", ...r })),
+        scan((r) => client.getContractEvents({ address: contracts.hushRegistry, abi: hushRegistryAbi, eventName: "AgentUnfrozen", ...r })),
       ]);
 
       const all = [...usdcOut, ...usdcIn, ...stockIn, ...stockOut, ...veilOut, ...veilIn, ...batches, ...frozen, ...unfrozen];

@@ -7,7 +7,7 @@
  * Everything here is re-exported by "@hush/config", which adds the eERC-aware `wallet()`.
  *   HUSH_NETWORK=fuji (default) | localhost
  */
-import { type HushContracts, STOCK_TICKERS, type StockTicker } from "@hush/x402/contracts";
+import { type HushContracts, MAX_LOG_RANGE, STOCK_TICKERS, type StockTicker } from "@hush/x402/contracts";
 import { config as loadDotenv } from "dotenv";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -23,13 +23,24 @@ export type NetworkName = "fuji" | "localhost";
 export const NETWORK: NetworkName =
   process.env.HUSH_NETWORK === "localhost" || process.argv.includes("--local") ? "localhost" : "fuji";
 
-const NETWORKS: Record<NetworkName, { chain: Chain; rpc: string; explorer?: string }> = {
+// Log scans may use their own RPC. No single public Fuji RPC does both jobs: the official one serves historical state
+// (needed to decrypt outgoing eERC transfers) but caps getLogs at 100 blocks; publicnode allows 50 000-block spans but
+// prunes old state. logsRpc + logsMaxRange describe the RPC used for scans (FUJI_LOGS_RPC_URL, LOGS_MAX_RANGE);
+// unset, scans use the main RPC 100 blocks at a time — correct everywhere, just slower over long histories.
+const NETWORKS: Record<NetworkName, { chain: Chain; rpc: string; logsRpc: string; logsMaxRange: bigint; explorer?: string }> = {
   fuji: {
     chain: avalancheFuji,
     rpc: process.env.FUJI_RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc",
+    logsRpc: process.env.FUJI_LOGS_RPC_URL || process.env.FUJI_RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc",
+    logsMaxRange: BigInt(process.env.LOGS_MAX_RANGE || MAX_LOG_RANGE),
     explorer: "https://testnet.snowtrace.io",
   },
-  localhost: { chain: hardhat, rpc: process.env.LOCAL_RPC_URL || "http://127.0.0.1:8545" },
+  localhost: {
+    chain: hardhat,
+    rpc: process.env.LOCAL_RPC_URL || "http://127.0.0.1:8545",
+    logsRpc: process.env.LOCAL_RPC_URL || "http://127.0.0.1:8545",
+    logsMaxRange: 10_000n,
+  },
 };
 export const NET = NETWORKS[NETWORK];
 export const txLink = (hash: string) => (NET.explorer ? `${NET.explorer}/tx/${hash}` : hash);
@@ -97,6 +108,8 @@ export function roleKey(role: Role): Hex {
 }
 
 export const publicClient = createPublicClient({ chain: NET.chain, transport: http(NET.rpc) });
+/** For getLogs scans only: pair it with `NET.logsMaxRange` (see NETWORKS). Same RPC as publicClient unless configured. */
+export const logsClient = NET.logsRpc === NET.rpc ? publicClient : createPublicClient({ chain: NET.chain, transport: http(NET.logsRpc) });
 
 let stateTagCache: Promise<string> | undefined;
 /**

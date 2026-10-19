@@ -10,7 +10,7 @@
  * Usage: pnpm journey[:local]   (needs bootstrap + facilitator, provider, price bot and desk running; after the
  *         providers have committed a few epochs, Proof of Alpha can verify SignalCo — otherwise that check notes it)
  */
-import { NET, NETWORK, URLS, loadContracts, circuitPaths, publicClient, txLink, wallet } from "@hush/config";
+import { NET, NETWORK, URLS, loadContracts, circuitPaths, logsClient, publicClient, txLink, wallet } from "@hush/config";
 import {
   EercAccount,
   type TradeReport,
@@ -19,6 +19,7 @@ import {
   eercToAtomic,
   formatShares,
   formatUsdc,
+  getLogsChunked,
   hushRegistryAbi,
   latestRound,
   registerAgent,
@@ -225,11 +226,11 @@ async function main() {
   await check("public footprint: no USDC or mStock ever moved to or from the agent", async () => {
     const transfer = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
     const tokens = [contracts.usdc, ...(Object.values(contracts.stocks!) as Address[])];
-    const range = { fromBlock: startBlock, toBlock: await publicClient.getBlockNumber() };
-    const [out, inn] = await Promise.all([
-      publicClient.getLogs({ address: tokens, event: transfer, args: { from: agent }, ...range }),
-      publicClient.getLogs({ address: tokens, event: transfer, args: { to: agent }, ...range }),
-    ]);
+    // The journey spans hundreds of Fuji blocks; scan them in RPC-sized ranges.
+    const latest = await publicClient.getBlockNumber();
+    const scan = (args: { from: Address } | { to: Address }) =>
+      getLogsChunked(startBlock, latest, (range) => logsClient.getLogs({ address: tokens, event: transfer, args, ...range }), { maxRange: NET.logsMaxRange });
+    const [out, inn] = await Promise.all([scan({ from: agent }), scan({ to: agent })]);
     assert(out.length + inn.length === 0, `${out.length + inn.length} public token transfers`);
     return "0 public token transfers — only encrypted eERC transfers (allocation, 2 top-ups, settle-out) and batch roots";
   });

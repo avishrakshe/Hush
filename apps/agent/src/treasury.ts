@@ -8,7 +8,7 @@
  *   pnpm --filter @hush/agent treasury deposit 50              # USDC → hUSDC (public amount)
  *   (add --local for the hardhat node)
  */
-import { NETWORK, ROLES, type Role, URLS, loadContracts, publicClient, txLink, wallet } from "@hush/config";
+import { NET, NETWORK, ROLES, type Role, URLS, loadContracts, logsClient, publicClient, txLink, wallet } from "@hush/config";
 import {
   TOPUP_MEMO_PREFIX,
   atomicToEercExact,
@@ -57,7 +57,7 @@ async function status() {
   console.log(`  agents           ${agents.map((a) => `${nameOf(a)} ${a}`).join(", ") || "none"}`);
 
   console.log("\nScanning the treasury's private transfers and decrypting them locally…");
-  const history = await eerc.history();
+  const history = await eerc.history({ chunk: NET.logsMaxRange, logsClient: logsClient as never });
   const byCounterparty = new Map<string, { units: bigint; count: number; errors: number }>();
   for (const h of history.filter((x) => x.direction === "out")) {
     const k = h.counterparty.toLowerCase();

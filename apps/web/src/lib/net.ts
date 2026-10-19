@@ -1,7 +1,7 @@
 import { HUSH_DEPLOYMENTS, type HushContracts } from "@hush/x402/contracts";
 import { type PublicClient, createPublicClient, http } from "viem";
 import { avalancheFuji, hardhat } from "viem/chains";
-import { FUJI_RPC, LOCAL_RPC } from "./services";
+import { FUJI_LOGS_MAX_RANGE, FUJI_RPC, LOCAL_RPC } from "./services";
 
 export const FUJI_CONTRACTS = HUSH_DEPLOYMENTS[avalancheFuji.id]!;
 
@@ -21,3 +21,6 @@ export function clientFor(chainId: number): PublicClient {
 }
 
 export const isLocal = (c: Pick<HushContracts, "chainId">) => c.chainId === hardhat.id;
+
+/** getLogs span cap of the RPC behind clientFor(chainId); a hardhat node has none worth worrying about. */
+export const logsMaxRangeFor = (chainId: number) => (chainId === hardhat.id ? 10_000n : FUJI_LOGS_MAX_RANGE);

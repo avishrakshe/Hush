@@ -6,7 +6,7 @@
  * the auditor key at export time, so the index on disk reveals nothing an observer couldn't read from the chain.
  * A transfer's asset (tokenId) is only in calldata, so each transfer costs one transaction read.
  */
-import { type HushContracts, type EercAccount, encryptedErcAbi, readEercTransfer } from "@hush/x402";
+import { type HushContracts, type EercAccount, MAX_LOG_RANGE, encryptedErcAbi, getLogsChunked, readEercTransfer } from "@hush/x402";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { type Address, type Hex, type PublicClient, erc20Abi, formatUnits, isAddressEqual } from "viem";
@@ -46,7 +46,9 @@ export interface AuditEntry {
   amountSource: string;
 }
 
-const CHUNK = 2_000n; // Fuji's public RPC caps getLogs at 2048 blocks
+// The cursor is checkpointed every WINDOW_RANGES getLogs ranges, so a long first scan (Fuji's public RPC: 100 blocks
+// per request, ~8 700 requests since deployment) resumes where it stopped.
+const WINDOW_RANGES = 50n;
 
 export class AuditIndex {
   private data: IndexFile;
@@ -54,7 +56,15 @@ export class AuditIndex {
   private assets = new Map<string, Promise<{ symbol: string; decimals: number }>>();
 
   constructor(
-    private readonly opts: { file: string; publicClient: PublicClient; contracts: HushContracts; log: (...a: unknown[]) => void },
+    private readonly opts: {
+      file: string;
+      publicClient: PublicClient;
+      contracts: HushContracts;
+      /** Client for the getLogs scan (default: publicClient) and the widest span it accepts (default 100 blocks). */
+      logsClient?: PublicClient;
+      maxRange?: bigint;
+      log: (...a: unknown[]) => void;
+    },
   ) {
     this.data = existsSync(opts.file)
       ? (JSON.parse(readFileSync(opts.file, "utf8")) as IndexFile)
@@ -74,11 +84,14 @@ export class AuditIndex {
   private async scan() {
     const { publicClient: pc, contracts } = this.opts;
     const latest = await pc.getBlockNumber();
+    const maxRange = this.opts.maxRange ?? MAX_LOG_RANGE;
+    const window = maxRange * WINDOW_RANGES;
     let from = BigInt(this.data.cursor);
     const started = from;
     while (from <= latest) {
-      const to = from + CHUNK - 1n > latest ? latest : from + CHUNK - 1n;
-      const logs = await pc.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, fromBlock: from, toBlock: to });
+      const to = from + window - 1n > latest ? latest : from + window - 1n;
+      const scanner = this.opts.logsClient ?? pc;
+      const logs = await getLogsChunked(from, to, (range) => scanner.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, ...range }), { maxRange });
       for (const log of logs) {
         const base = { block: log.blockNumber.toString(), logIndex: log.logIndex, txHash: log.transactionHash };
         const a = log.args as Record<string, unknown>;
@@ -98,10 +111,10 @@ export class AuditIndex {
       }
       from = to + 1n;
       this.data.cursor = from.toString();
-      if ((from - started) % (CHUNK * 50n) === 0n) this.save(); // checkpoint long first scans
+      if (to < latest) this.save(); // checkpoint long first scans
     }
     this.save();
-    if (from - started > CHUNK) this.opts.log(`audit index: scanned to block ${latest} (${this.data.rows.length} eERC events)`);
+    if (from - started > window) this.opts.log(`audit index: scanned to block ${latest} (${this.data.rows.length} eERC events)`);
   }
 
   private save() {

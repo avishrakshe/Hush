@@ -13,6 +13,7 @@ import {
   parseEventLogs,
 } from "viem";
 import { encryptedErcAbi, registrarAbi } from "../generated/abis.js";
+import { MAX_LOG_RANGE, getLogsChunked } from "../logs.js";
 import type { HushContracts } from "../types.js";
 import { type EercTransfer, auditorPct, readEercTransfer, receiverPct } from "./calldata.js";
 
@@ -243,48 +244,44 @@ export class EercAccount {
 
   /**
    * This account's private transfers, decrypted locally: outgoing via the official SDK (historical balance diff),
-   * incoming from calldata. Scans PrivateTransfer logs from the eERC deployment block in `chunk`-sized ranges.
+   * incoming from calldata. Scans PrivateTransfer logs from the eERC deployment block in ranges of at most `chunk`
+   * blocks — the RPC's getLogs cap (default {@link MAX_LOG_RANGE}, which any Fuji RPC accepts). `logsClient` can point
+   * the scan at a wide-range RPC; decryption stays on this account's client, which must serve historical state.
    */
-  async history(opts: { fromBlock?: bigint; chunk?: bigint } = {}): Promise<
+  async history(opts: { fromBlock?: bigint; chunk?: bigint; logsClient?: PublicClient } = {}): Promise<
     { txHash: Hex; blockNumber: bigint; direction: "in" | "out"; counterparty: Address; units?: bigint; memo?: string; error?: string }[]
   > {
     await this.init();
     const latest = await this.publicClient.getBlockNumber();
-    const chunk = opts.chunk ?? 2_000n;
     const out: Awaited<ReturnType<EercAccount["history"]>> = [];
-    for (let from = opts.fromBlock ?? BigInt(this.contracts.startBlock); from <= latest; from += chunk) {
-      const to = from + chunk - 1n > latest ? latest : from + chunk - 1n;
-      const [sent, received] = await Promise.all(
-        [{ from: this.address }, { to: this.address }].map((args) =>
-          this.publicClient.getContractEvents({
-            address: this.contracts.encryptedErc,
-            abi: encryptedErcAbi,
-            eventName: "PrivateTransfer",
-            args,
-            fromBlock: from,
-            toBlock: to,
-          }),
+    const [sent, received] = await Promise.all(
+      [{ from: this.address }, { to: this.address }].map((args) =>
+        getLogsChunked(
+          opts.fromBlock ?? BigInt(this.contracts.startBlock),
+          latest,
+          (range) => (opts.logsClient ?? this.publicClient).getContractEvents({ address: this.contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args, ...range }),
+          { maxRange: opts.chunk ?? MAX_LOG_RANGE },
         ),
-      );
-      for (const log of sent ?? []) {
-        const { to: counterparty } = log.args as { to: Address };
-        const base = { txHash: log.transactionHash, blockNumber: log.blockNumber, direction: "out" as const, counterparty };
-        try {
-          out.push({ ...base, units: await this.decryptOutgoing(log.transactionHash) });
-        } catch (err) {
-          out.push({ ...base, error: (err as Error).message });
-        }
+      ),
+    );
+    for (const log of sent ?? []) {
+      const { to: counterparty } = log.args as { to: Address };
+      const base = { txHash: log.transactionHash, blockNumber: log.blockNumber, direction: "out" as const, counterparty };
+      try {
+        out.push({ ...base, units: await this.decryptOutgoing(log.transactionHash) });
+      } catch (err) {
+        out.push({ ...base, error: (err as Error).message });
       }
-      for (const log of received ?? []) {
-        const { from: counterparty } = log.args as { from: Address };
-        if (isAddressEqual(counterparty, this.address)) continue; // self-transfer already listed as outgoing
-        const base = { txHash: log.transactionHash, blockNumber: log.blockNumber, direction: "in" as const, counterparty };
-        try {
-          const { units, memo } = await this.decryptIncoming(log.transactionHash);
-          out.push({ ...base, units, memo });
-        } catch (err) {
-          out.push({ ...base, error: (err as Error).message });
-        }
+    }
+    for (const log of received ?? []) {
+      const { from: counterparty } = log.args as { from: Address };
+      if (isAddressEqual(counterparty, this.address)) continue; // self-transfer already listed as outgoing
+      const base = { txHash: log.transactionHash, blockNumber: log.blockNumber, direction: "in" as const, counterparty };
+      try {
+        const { units, memo } = await this.decryptIncoming(log.transactionHash);
+        out.push({ ...base, units, memo });
+      } catch (err) {
+        out.push({ ...base, error: (err as Error).message });
       }
     }
     return out.sort((a, b) => (a.blockNumber < b.blockNumber ? -1 : a.blockNumber > b.blockNumber ? 1 : 0));

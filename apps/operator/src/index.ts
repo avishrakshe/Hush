@@ -13,7 +13,7 @@
  *
  *   pnpm operator          (Fuji)   ·   pnpm operator:local
  */
-import { NET, NETWORK, ROLES, type Role, URLS, loadContracts, publicClient, signer, stateTag, txLink, wallet } from "@hush/config";
+import { NET, NETWORK, ROLES, type Role, URLS, loadContracts, logsClient, publicClient, signer, stateTag, txLink, wallet } from "@hush/config";
 import {
   type EercAccount,
   type Sealed,
@@ -450,6 +450,8 @@ const audit = new AuditIndex({
   file: fileURLToPath(new URL(`../.data/audit-${NETWORK}${STATE_TAG}.json`, import.meta.url)),
   publicClient: publicClient as never,
   contracts,
+  logsClient: logsClient as never,
+  maxRange: NET.logsMaxRange,
   log,
 });
 /** Readable names for the demo's own addresses (roles whose keys are in .env). */

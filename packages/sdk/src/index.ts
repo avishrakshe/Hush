@@ -20,6 +20,7 @@ export {
 } from "./generated/abis.js";
 export { HUSH_DEPLOYMENTS } from "./generated/deployments.js";
 export * from "./stocks.js";
+export { MAX_LOG_RANGE, blockRanges, getLogsChunked, type BlockRange } from "./logs.js";
 export * from "./registry.js";
 export { exportKeyBackup, importKeyBackup, type KeyBackup } from "./backup.js";
 export { seal, unseal, isRecipient, type Sealed } from "./seal.js";

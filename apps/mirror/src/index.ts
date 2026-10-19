@@ -13,7 +13,7 @@
  *
  *   pnpm mirror [--local]    env: MIRROR_PORT (4033), MIRROR_POLL_MS (2000), MIRROR_SCALE (1), MIRROR_MAX_SHARES (0.50)
  */
-import { NETWORK, URLS, loadContracts, publicClient, signer, txLink } from "@hush/config/base";
+import { NET, NETWORK, URLS, loadContracts, logsClient, publicClient, signer, txLink } from "@hush/config/base";
 import {
   CENTISHARE,
   STOCK_TICKERS,
@@ -240,16 +240,17 @@ async function poll() {
   const head = await publicClient.getBlockNumber();
   if (head < cursor) return;
   const fromBlock = cursor;
-  const toBlock = head - cursor > 1_999n ? cursor + 1_999n : head;
+  // One RPC-sized range per poll (Fuji's public RPC: 100 blocks); after a pause Mirror catches up range by range.
+  const toBlock = head - cursor >= NET.logsMaxRange ? cursor + NET.logsMaxRange - 1n : head;
   const stocks = Object.values(contracts.stocks!) as Address[];
   const range = { fromBlock, toBlock };
   const [stockOut, stockIn, usdcIn, toProvider, eercFrom, eercTo] = await Promise.all([
-    publicClient.getLogs({ address: stocks, event: transferEvent, args: { from: DESK }, ...range }),
-    publicClient.getLogs({ address: stocks, event: transferEvent, args: { to: DESK }, ...range }),
-    publicClient.getLogs({ address: contracts.usdc, event: transferEvent, args: { to: DESK }, ...range }),
-    publicClient.getLogs({ address: contracts.usdc, event: transferEvent, args: { to: PROVIDER }, ...range }),
-    publicClient.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args: { from: [DESK, PROVIDER] }, ...range }),
-    publicClient.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args: { to: [DESK, PROVIDER] }, ...range }),
+    logsClient.getLogs({ address: stocks, event: transferEvent, args: { from: DESK }, ...range }),
+    logsClient.getLogs({ address: stocks, event: transferEvent, args: { to: DESK }, ...range }),
+    logsClient.getLogs({ address: contracts.usdc, event: transferEvent, args: { to: DESK }, ...range }),
+    logsClient.getLogs({ address: contracts.usdc, event: transferEvent, args: { to: PROVIDER }, ...range }),
+    logsClient.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args: { from: [DESK, PROVIDER] }, ...range }),
+    logsClient.getContractEvents({ address: contracts.encryptedErc, abi: encryptedErcAbi, eventName: "PrivateTransfer", args: { to: [DESK, PROVIDER] }, ...range }),
   ]);
   type Item = { block: bigint; index: number; run: () => Promise<void> };
   const items: Item[] = [];

@@ -16,6 +16,8 @@ export type ServiceName = keyof typeof SERVICES;
 
 export const FUJI_RPC = process.env.NEXT_PUBLIC_FUJI_RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc";
 export const LOCAL_RPC = process.env.NEXT_PUBLIC_LOCAL_RPC_URL || "http://127.0.0.1:8545";
+/** Widest getLogs span FUJI_RPC accepts: 100 on the public RPC; raise it with a more generous RPC (publicnode: 50000). */
+export const FUJI_LOGS_MAX_RANGE = BigInt(process.env.NEXT_PUBLIC_LOGS_MAX_RANGE || 100);
 
 export type AgentId = "atlas" | "veil";
 export const AGENT_META: Record<AgentId, { name: string; scheme: string; blurb: string }> = {

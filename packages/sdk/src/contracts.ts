@@ -18,6 +18,8 @@ export { STOCK_TICKERS, type StockTicker, STOCK_DECIMALS, ORACLE_PRICE_DECIMALS,
 export { isStockTicker, tickerToBytes32, bytes32ToTicker, formatPrice, stockContracts, latestRound, roundAt, recentRounds, type OracleRound } from "./stocks.js";
 // Reading what an observer sees of an eERC transfer needs only viem + the ABI (no eERC SDK).
 export { readEercTransfer, type EercTransfer } from "./eerc/calldata.js";
+// Log scans in RPC-sized ranges (Fuji's public RPC caps getLogs at 100 blocks).
+export { MAX_LOG_RANGE, blockRanges, getLogsChunked, type BlockRange } from "./logs.js";
 export { formatShares, parseShares, alphaDomain, signalFromJson, signalToJson, signalTyped } from "./alpha.js";
 // Proof of Alpha verification is viem-only, so a browser can check a provider's record itself.
 export {
