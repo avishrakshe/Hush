@@ -305,4 +305,13 @@ describe("HushProviderService — refunds, expiry, batches", () => {
     expect(idle).toMatchObject({ batchId: 2n, voucherCount: 0, dummy: true });
     expect(s.state.commits[1]!.root).not.toBe(s.state.commits[0]!.root);
   });
+
+  it("a concurrent commit skips, but a forced one waits and then commits its own batch", async () => {
+    const cron = s.service.commitBatch();
+    expect(await s.service.commitBatch()).toBeNull();
+    const forced = s.service.commitBatch({ wait: true });
+    const [a, b] = await Promise.all([cron, forced]);
+    expect(b?.batchId).toBe(a!.batchId + 1n);
+    expect(s.state.commits).toHaveLength(2);
+  });
 });

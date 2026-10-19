@@ -115,7 +115,7 @@ export class HushProviderService {
   private readonly domain: TypedDataDomain;
   private readonly locks = new Map<string, Promise<unknown>>();
   private tokenIdCache: bigint | undefined;
-  private committing = false;
+  private committing: Promise<unknown> | undefined;
 
   constructor(opts: HushProviderServiceOptions) {
     this.opts = opts;
@@ -476,56 +476,68 @@ export class HushProviderService {
   /**
    * Merkle-izes every consumed-but-uncommitted voucher and commits the root to HushLedger. With nothing to commit it
    * still commits a random root (indistinguishable from a real one), so commit timing reveals no activity.
+   *
+   * While another commit is in flight it returns null (the cron just skips a tick), unless `wait` is set: a forced
+   * commit then waits and commits its own batch, so a caller that verifies right after never sees "pending".
    */
-  async commitBatch(): Promise<{ batchId: bigint; root: Hex; txHash: Hex; voucherCount: number; dummy: boolean } | null> {
-    const committer = this.opts.committer;
-    if (!committer) throw new Error("commitBatch needs a `committer` wallet");
-    if (this.committing) return null;
-    this.committing = true;
-    try {
-      const vouchers = await this.opts.store.listUnbatchedVouchers(this.provider);
-      const latest = await this.opts.publicClient.readContract({
-        address: this.contracts.hushLedger,
-        abi: hushLedgerAbi,
-        functionName: "latestBatchId",
-        args: [this.provider],
-      });
-      const batchId = latest + 1n;
-
-      const proofs = new Map<string, Hex[]>();
-      let root: Hex;
-      if (vouchers.length === 0) {
-        root = keccak256(toHex(globalThis.crypto.getRandomValues(new Uint8Array(32))));
-      } else {
-        const values = vouchers.map((v) =>
-          voucherLeafValues({ voucher: voucherFromJson(v.voucher), signature: v.signature }).map((x) =>
-            typeof x === "bigint" ? x.toString() : x,
-          ),
-        );
-        const tree = StandardMerkleTree.of(values, [...LEAF_TYPES]);
-        root = tree.root as Hex;
-        for (const [i, v] of vouchers.entries()) proofs.set(v.leaf.toLowerCase(), tree.getProof(i) as Hex[]);
-      }
-
-      const txHash = await committer.writeContract({
-        address: this.contracts.hushLedger,
-        abi: hushLedgerAbi,
-        functionName: "commitBatch",
-        args: [this.provider, batchId, root],
-      });
-      const receipt = await this.opts.publicClient.waitForTransactionReceipt({ hash: txHash });
-      if (receipt.status !== "success") throw new Error(`commitBatch reverted: ${txHash}`);
-
-      const dummy = vouchers.length === 0;
-      await this.opts.store.addBatch(
-        { provider: this.provider, batchId, root, txHash, voucherCount: vouchers.length, dummy, committedAt: this.now() },
-        proofs,
-      );
-      this.emit({ type: "batch", batchId, root, txHash, voucherCount: vouchers.length, dummy });
-      return { batchId, root, txHash, voucherCount: vouchers.length, dummy };
-    } finally {
-      this.committing = false;
+  async commitBatch(
+    { wait = false }: { wait?: boolean } = {},
+  ): Promise<{ batchId: bigint; root: Hex; txHash: Hex; voucherCount: number; dummy: boolean } | null> {
+    if (!this.opts.committer) throw new Error("commitBatch needs a `committer` wallet");
+    while (this.committing) {
+      if (!wait) return null;
+      await this.committing.catch(() => {});
     }
+    const run = this.commitNow(this.opts.committer);
+    this.committing = run;
+    try {
+      return await run;
+    } finally {
+      this.committing = undefined;
+    }
+  }
+
+  private async commitNow(committer: WalletClient<Transport, Chain, Account>) {
+    const vouchers = await this.opts.store.listUnbatchedVouchers(this.provider);
+    const latest = await this.opts.publicClient.readContract({
+      address: this.contracts.hushLedger,
+      abi: hushLedgerAbi,
+      functionName: "latestBatchId",
+      args: [this.provider],
+    });
+    const batchId = latest + 1n;
+
+    const proofs = new Map<string, Hex[]>();
+    let root: Hex;
+    if (vouchers.length === 0) {
+      root = keccak256(toHex(globalThis.crypto.getRandomValues(new Uint8Array(32))));
+    } else {
+      const values = vouchers.map((v) =>
+        voucherLeafValues({ voucher: voucherFromJson(v.voucher), signature: v.signature }).map((x) =>
+          typeof x === "bigint" ? x.toString() : x,
+        ),
+      );
+      const tree = StandardMerkleTree.of(values, [...LEAF_TYPES]);
+      root = tree.root as Hex;
+      for (const [i, v] of vouchers.entries()) proofs.set(v.leaf.toLowerCase(), tree.getProof(i) as Hex[]);
+    }
+
+    const txHash = await committer.writeContract({
+      address: this.contracts.hushLedger,
+      abi: hushLedgerAbi,
+      functionName: "commitBatch",
+      args: [this.provider, batchId, root],
+    });
+    const receipt = await this.opts.publicClient.waitForTransactionReceipt({ hash: txHash });
+    if (receipt.status !== "success") throw new Error(`commitBatch reverted: ${txHash}`);
+
+    const dummy = vouchers.length === 0;
+    await this.opts.store.addBatch(
+      { provider: this.provider, batchId, root, txHash, voucherCount: vouchers.length, dummy, committedAt: this.now() },
+      proofs,
+    );
+    this.emit({ type: "batch", batchId, root, txHash, voucherCount: vouchers.length, dummy });
+    return { batchId, root, txHash, voucherCount: vouchers.length, dummy };
   }
 
   async proofFor(leaf: Hex) {

@@ -238,7 +238,8 @@ export async function createFacilitator(opts: FacilitatorOptions = {}) {
   app.post(
     "/admin/commit",
     requireAdmin,
-    wrap(async (_req, res) => send(res, (await service.commitBatch()) ?? { busy: true })),
+    // Waits out an in-flight cron commit instead of answering "busy": callers verify inclusion right after.
+    wrap(async (_req, res) => send(res, await service.commitBatch({ wait: true }))),
   );
 
   // ─── jobs ──────────────────────────────────────────────────────────────────
