@@ -362,4 +362,7 @@ stay unchanged. Commit + push after each phase.
   - PowerShell gotchas:
     - `pnpm demo --only "a,b"` must be quoted (unquoted commas become an array).
     - Pass git commit messages with embedded quotes via `-F file`.
-- Next: optional Fuji re-run of the suites · demo video · submission (no mainnet deploy — staying on Fuji)
+- Fuji re-run (2026-10-20): `e2e` 15/15, `desk-e2e` 15/15 (after fixing a forced-commit race: `/admin/commit` now
+  waits out an in-flight cron commit instead of answering `{busy:true}`), `journey` 12/12, `mirror-e2e` 6/6.
+  `alpha-e2e` not finished: it waits ~30 min for an epoch to resolve, and the stack was reaped for low memory.
+- Next: demo video · submission (no mainnet deploy — staying on Fuji)
