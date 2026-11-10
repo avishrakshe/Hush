@@ -1,0 +1,16 @@
+# Vercel builds only apps/web (+ the @hush/x402 workspace package). Keep secrets, local state and
+# build output out of the upload.
+.env
+.env.*
+**/.env
+**/.env.*
+.claude
+**/.data
+**/node_modules
+**/.next
+**/*.tsbuildinfo
+packages/contracts/artifacts
+packages/contracts/cache
+packages/contracts/typechain-types
+packages/contracts/circuits
+packages/contracts/deployments/localhost.json
